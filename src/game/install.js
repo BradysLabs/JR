@@ -21,6 +21,8 @@ const path = require('path')
 const os = require('os')
 const { spawn } = require('child_process')
 const fs = (() => { try { return require('original-fs') } catch (_) { return require('fs') } })()
+// JR's own files may sit inside JR's app.asar once installed; plain fs can read those.
+const jrFs = require('fs')
 const asar = require('./asar')
 
 const PATCH_VERSION = 2
@@ -122,11 +124,11 @@ function patchedArchive (officialAsar) {
       const i = files.findIndex(([q]) => q === p)
       if (i === -1) files.push([p, data]); else files[i] = [p, data]
     }
-    add('gui/jr-skin.js', fs.readFileSync(path.join(__dirname, 'skin', 'jr-skin.js')))
+    add('gui/jr-skin.js', jrFs.readFileSync(path.join(__dirname, 'skin', 'jr-skin.js')))
     const icon = path.join(__dirname, '..', '..', 'assets', 'icon.png')
-    if (fs.existsSync(icon)) {
-      add('gui/images/icon.png', fs.readFileSync(icon))
-      add('gui/icon.png', fs.readFileSync(icon))
+    if (jrFs.existsSync(icon)) {
+      add('gui/images/icon.png', jrFs.readFileSync(icon))
+      add('gui/icon.png', jrFs.readFileSync(icon))
     }
     return { files, executable }
   } finally {

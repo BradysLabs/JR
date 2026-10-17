@@ -263,6 +263,19 @@ async function start () {
   gate = createGate()
   registerIpc()
   showPicker()
+  checkForUpdates()
+}
+
+/** Installed copies update themselves from GitHub Releases. */
+function checkForUpdates () {
+  if (isDev) return
+  try {
+    const { autoUpdater } = require('electron-updater')
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {})
+    setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 60 * 60 * 1000)
+  } catch (_) {}
 }
 
 app.on('window-all-closed', () => app.quit())
