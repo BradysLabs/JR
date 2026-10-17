@@ -1,0 +1,43 @@
+{
+  "name": "jr",
+  "productName": "JR",
+  "version": "0.0.0",
+  "description": "JR, a plugin toolkit for Animal Jam Classic by BradysLabs.",
+  "author": "BradysLabs",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "src/main/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "electron .",
+    "build": "electron-builder build --win"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BradysLabs/JR.git"
+  },
+  "build": {
+    "appId": "com.bradyslabs.jr",
+    "productName": "JR",
+    "copyright": "Copyright (c) 2026 BradysLabs",
+    "files": [
+      "src/**/*",
+      "plugins/**/*",
+      "package.json",
+      "LICENSE"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "BradysLabs",
+      "repo": "JR"
+    }
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
