@@ -27,7 +27,11 @@ const HOP_HEADERS = new Set(['connection', 'keep-alive', 'transfer-encoding', 'c
 function publicHost (host) {
   if (!host) return host
   const m = /^(.*)\.(stage|prod)\.animaljam\.internal$/.exec(host)
-  return m ? `lb-${m[1]}-${m[2]}.animaljam.com` : host
+  if (m) return `lb-${m[1]}-${m[2]}.animaljam.com`
+  // "iss01-classic-prod.animaljam.com" is Animal Jam's private address;
+  // players reach the same server through its "lb-" (load balancer) name.
+  if (/^iss\d+[\w-]*\.animaljam\.com$/i.test(host)) return `lb-${host}`
+  return host
 }
 
 /**
@@ -95,6 +99,8 @@ class GameServer extends EventEmitter {
 
   async _handle (req, res) {
     const url = new URL(req.url, 'http://127.0.0.1')
+    if (url.pathname !== '/game/session') this.requests = (this.requests || 0) + 1
+    if (this.requests <= 40 || url.pathname.includes('ajclient')) this.log({ type: 'debug', message: `Game asked for ${req.method} ${url.pathname}` })
     const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' }
 
     if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end() }
@@ -138,6 +144,7 @@ class GameServer extends EventEmitter {
     const version = String(flashVars.deploy_version || '').replace(/[^\w.-]/g, '')
     this.session = {
       upstream,
+      originalServer: flashVars.smartfoxServer || upstream.host,
       content: ensureSlash(flashVars.content),
       mdUrl: flashVars.mdUrl ? ensureSlash(flashVars.mdUrl) : null,
       clientURL: flashVars.clientURL || (flashVars.content && version ? `${ensureSlash(flashVars.content)}${version}/ajclient.swf` : null),

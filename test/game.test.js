@@ -94,6 +94,8 @@ test('upstream address from flashvars', () => {
   assert.deepEqual(upstreamFrom({ ingressXt: 'lb-iss04-classic-prod.animaljam.com:443', smartfoxServer: 'x' }), { host: 'lb-iss04-classic-prod.animaljam.com', port: 443 })
   assert.deepEqual(upstreamFrom({ smartfoxServer: 'iss02-classic.prod.animaljam.internal', smartfoxPort: '443' }), { host: 'lb-iss02-classic-prod.animaljam.com', port: 443 })
   assert.equal(publicHost('example.com'), 'example.com')
+  assert.equal(publicHost('iss01-classic-prod.animaljam.com'), 'lb-iss01-classic-prod.animaljam.com')
+  assert.equal(publicHost('lb-iss01-classic-prod.animaljam.com'), 'lb-iss01-classic-prod.animaljam.com')
   assert.equal(serverName('lb-iss02-classic-prod.animaljam.com'), 'iss02')
   assert.throws(() => upstreamFrom({}), /No game server/)
 })

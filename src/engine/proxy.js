@@ -127,6 +127,7 @@ class Session extends EventEmitter {
       }
       if (!this.server) {
         this.emit('claim')
+        this.proxy._log('notify', 'The game connected to JR.')
         this._connectServer()
       }
       this._enqueue(OUT, text)
@@ -138,6 +139,7 @@ class Session extends EventEmitter {
     try { target = this.proxy.upstream() } catch (e) { return this.close(`No server to connect to: ${e.message}`) }
     const { host, port = 443, secure = true, verify = true, ca } = target || {}
     if (!host) return this.close('No server to connect to')
+    this.proxy._log('notify', `Connecting to ${host}:${port}${secure ? ' (secure)' : ''}…`)
 
     const onConnect = () => {
       this.serverReady = true

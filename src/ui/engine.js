@@ -44,8 +44,20 @@ module.exports = function createEngine (info) {
   /* ---------------------------------------------------------------- logs */
 
   const logs = []
+  // Logs are also written to <profile>/logs/, so problems can be looked at later.
+  const logDir = path.join(info.dataDir, 'logs')
+  fs.mkdirSync(logDir, { recursive: true })
+  const logFile = path.join(logDir, 'jr.log')
+  const packetFile = path.join(logDir, 'packets.log')
+  try { if (fs.existsSync(logFile) && fs.statSync(logFile).size > 2e6) fs.renameSync(logFile, logFile + '.old') } catch (_) {}
+  try { fs.writeFileSync(packetFile, '') } catch (_) {}
+  const scrub = (text) => String(text)
+    .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}/g, '[token]')
+    .replace(/("?(auth_token|authToken|refresh_token|pword|password)"?\s*[:=]\s*"?)[^"&,}<\]]+/gi, '$1[hidden]')
+    .replace(/(<pword><!\[CDATA\[)[^\]]*/g, '$1[hidden]')
   const log = (entry) => {
     const e = { t: Date.now(), type: entry.type || 'notify', message: String(entry.message) }
+    try { fs.appendFileSync(logFile, `${new Date(e.t).toISOString()} ${e.type.toUpperCase()} ${scrub(e.message)}\n`) } catch (_) {}
     logs.push(e)
     if (logs.length > 1000) logs.splice(0, logs.length - 1000)
     events.emit('log', e)
@@ -63,6 +75,17 @@ module.exports = function createEngine (info) {
     dispatch,
     upstream: () => ({ ...gameServer.upstream(), secure: settings.secureUpstream, verify: settings.verifyCertificate })
   })
+  // The game's first message names the server address it connected to,
+  // which is JR (127.0.0.1). Tell the server the real address instead.
+  dispatch.onMessage({
+    type: 'connection',
+    message: 'sv',
+    callback: ({ message }) => {
+      const parts = message.value
+      if (Array.isArray(parts) && parts[5] === '127.0.0.1' && gameServer.session) parts[5] = gameServer.session.originalServer
+    }
+  })
+
   let serverName = null
   gameServer.on('session', (s) => { serverName = s.server; events.emit('status') })
   dispatch.on('connected', () => events.emit('status'))
@@ -79,7 +102,12 @@ module.exports = function createEngine (info) {
 
   // Packet history for the Logs page.
   const packets = []
+  let packetLines = 0
   dispatch.onPacket((p) => {
+    if (packetLines < 5000) {
+      packetLines++
+      try { fs.appendFileSync(packetFile, `${new Date(p.timestamp).toISOString()} ${p.direction === 'in' ? 'IN ' : 'OUT'}${p.fromPlugin ? ' [plugin]' : ''}${p.blocked ? ' [blocked]' : ''} ${scrub(p.raw).slice(0, 2000)}\n`) } catch (_) {}
+    }
     packets.push(p)
     if (packets.length > 600) packets.splice(0, packets.length - 600)
     events.emit('packet', p)
