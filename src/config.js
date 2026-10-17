@@ -7,8 +7,8 @@ module.exports = {
   // Discord sign-in (JR is for members of the JR Discord server).
   // Leave clientId empty to turn the check off while developing.
   discord: {
-    clientId: '',
-    guildId: '',
+    clientId: '1561120591308918874',
+    guildId: '1553869410459062354',
     requiredRoleId: null,
     invite: 'https://discord.gg/UvXzA2gK5W'
   },
