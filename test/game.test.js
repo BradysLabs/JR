@@ -16,9 +16,9 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'jr-game-'))
 // A stand-in for the official app, with the exact lines JR patches.
 const FAKE = {
   'config.js': 'module.exports = {\n  noUpdater: false,\n  pluginPath: "../../",\n};\n',
-  'index.js': 'const {app} = require("electron");\nconst config = require("./config.js");\nconsole.log(config);\n',
+  'index.js': 'const {app} = require("electron");\nconst config = require("./config.js");\nconst w = { backgroundColor: "#F5C86D" };\n',
   'gui/components/GameScreen.js': '"use strict";\n(() => {\n  this.webViewElem.send("flashVarsReady", flashVars);\n})();\n',
-  'gui/index.html': '<html></html>',
+  'gui/index.html': '<html><head><title>Animal Jam Classic</title></head></html>',
   'package.json': '{"name":"aj-classic","version":"1.5.7"}'
 }
 
@@ -62,7 +62,10 @@ test('game copy: built once, patched, rebuilt when AJ updates', () => {
   const screen = a.read('gui/components/GameScreen.js').toString()
   assert.match(screen, /window\.jrPrepare = async/)
   assert.match(screen, /window\.jrPrepare\(flashVars\)\.then/)
-  assert.equal(a.read('gui/index.html').toString(), '<html></html>')
+  assert.match(a.read('gui/index.html').toString(), /<title>JR<\/title>\s*<script src="jr-skin.js"><\/script>/)
+  assert.match(a.read('gui/jr-skin.js').toString(), /attachShadow/)
+  assert.match(a.read('index.js').toString(), /#0b0b0c/)
+  assert.ok(a.read('gui/images/icon.png').length > 1000)
   a.close()
   // The patched files are still valid JavaScript.
   assert.doesNotThrow(() => new Function(screen))

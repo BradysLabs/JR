@@ -239,7 +239,7 @@ module.exports = function createEngine (info) {
     const r = await ipc.invoke('game:prepare')
     if (!r.ok) throw new Error(r.error)
     const userDataDir = path.join(info.dataDir, 'game')
-    game = launch({ exe: r.value.exe, apiUrl: gameServer.url, userDataDir })
+    game = launch({ exe: r.value.exe, apiUrl: gameServer.url, userDataDir, profileName: info.profile.name })
     log({ type: 'notify', message: 'Opening Animal Jam…' })
     game.on('exit', () => {
       game = null

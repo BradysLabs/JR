@@ -23,7 +23,7 @@ const { spawn } = require('child_process')
 const fs = (() => { try { return require('original-fs') } catch (_) { return require('fs') } })()
 const asar = require('./asar')
 
-const PATCH_VERSION = 1
+const PATCH_VERSION = 2
 const EXE = 'AJ Classic.exe'
 
 /** Where the official AJ Classic is usually installed. */
@@ -45,6 +45,7 @@ const JR_INDEX = `
     return hit ? hit.slice(name.length + 3) : null
   }
   config.jrApi = arg('jr-api')
+  config.jrProfile = arg('jr-profile')
   const userData = arg('jr-user-data')
   if (userData) app.setPath('userData', userData)
 })();
@@ -74,7 +75,11 @@ const PATCHES = {
     ['noUpdater: false', 'noUpdater: true']
   ],
   'index.js': [
-    ['const config = require("./config.js");', 'const config = require("./config.js");' + JR_INDEX]
+    ['const config = require("./config.js");', 'const config = require("./config.js");' + JR_INDEX],
+    ['backgroundColor: "#F5C86D"', 'backgroundColor: "#0b0b0c"']
+  ],
+  'gui/index.html': [
+    ['<title>Animal Jam Classic</title>', '<title>JR</title>\n    <script src="jr-skin.js"></script>']
   ],
   'gui/components/GameScreen.js': [
     ['"use strict";', '"use strict";\n' + JR_GAME_SCREEN],
@@ -111,6 +116,17 @@ function patchedArchive (officialAsar) {
     }
     for (const p of Object.keys(PATCHES)) {
       if (!files.some(([q]) => q === p)) throw new Error(`AJ Classic has changed (${p} is missing).`)
+    }
+    // JR's look: its skin script and its icon.
+    const add = (p, data) => {
+      const i = files.findIndex(([q]) => q === p)
+      if (i === -1) files.push([p, data]); else files[i] = [p, data]
+    }
+    add('gui/jr-skin.js', fs.readFileSync(path.join(__dirname, 'skin', 'jr-skin.js')))
+    const icon = path.join(__dirname, '..', '..', 'assets', 'icon.png')
+    if (fs.existsSync(icon)) {
+      add('gui/images/icon.png', fs.readFileSync(icon))
+      add('gui/icon.png', fs.readFileSync(icon))
     }
     return { files, executable }
   } finally {
@@ -173,9 +189,11 @@ function copyDir (from, to, keep, rel = '') {
  * Starts JR's copy of the game for one profile.
  * @returns {import('child_process').ChildProcess}
  */
-function launch ({ exe, apiUrl, userDataDir }) {
+function launch ({ exe, apiUrl, userDataDir, profileName = '' }) {
   fs.mkdirSync(userDataDir, { recursive: true })
-  const child = spawn(exe, [`--jr-api=${apiUrl}`, `--jr-user-data=${userDataDir}`], {
+  const args = [`--jr-api=${apiUrl}`, `--jr-user-data=${userDataDir}`]
+  if (profileName) args.push(`--jr-profile=${profileName}`)
+  const child = spawn(exe, args, {
     cwd: path.dirname(exe),
     detached: false,
     stdio: 'ignore',
