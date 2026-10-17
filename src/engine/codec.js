@@ -41,14 +41,30 @@ class Packet {
     this.timestamp = Date.now()
   }
 
-  /** The packet as text, including any changes made to `value`. */
+  /**
+   * The packet as text, including any changes made to `value`. Unchanged
+   * packets come back exactly as received (byte for byte), because the game
+   * server is picky about details like `<a></a>` versus `<a />`.
+   */
   toMessage () {
+    const text = this._serialize()
+    if (this._pristine !== undefined && text === this._pristine) return this.raw
+    return text
+  }
+
+  _serialize () {
     switch (this.format) {
       case 'xt': return Array.isArray(this.value) ? this.value.join('%') : String(this.value)
       case 'json': return typeof this.value === 'string' ? this.value : JSON.stringify(this.value)
       case 'xml': return typeof this.value === 'string' ? this.value : xml.stringify(this.value)
       default: return String(this.value)
     }
+  }
+
+  /** Remembers how the untouched packet serializes, to spot changes later. */
+  _seal () {
+    if (this.format === 'xml' || this.format === 'json') this._pristine = this._serialize()
+    return this
   }
 
   toString () { return this.toMessage() }
@@ -88,7 +104,7 @@ function decode (raw, direction) {
       const value = JSON.parse(raw)
       const o = value && value.b && value.b.o
       const type = (o && (o._cmd || o.cmd)) || null
-      return new Packet({ format, type, value, raw, direction })
+      return new Packet({ format, type, value, raw, direction })._seal()
     } catch (_) {
       return new Packet({ format: 'text', type: null, value: raw, raw, direction })
     }
@@ -97,7 +113,7 @@ function decode (raw, direction) {
   if (format === 'xml') {
     try {
       const value = xml.parse(raw)
-      return new Packet({ format, type: xml.commandOf(value), value, raw, direction })
+      return new Packet({ format, type: xml.commandOf(value), value, raw, direction })._seal()
     } catch (_) {
       return new Packet({ format: 'text', type: null, value: raw, raw, direction })
     }

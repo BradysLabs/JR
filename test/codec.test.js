@@ -118,3 +118,13 @@ test('limiter.clear rejects waiting jobs', async () => {
   limiter.clear('Disconnected')
   await assert.rejects(waiting, /Disconnected/)
 })
+
+test('unchanged xml and json pass through byte for byte', () => {
+  const rawXml = "<msg t='sys'><body action='rndK' r='-1'></body></msg>"
+  assert.equal(decode(rawXml, 'out').toMessage(), rawXml)
+  const changed = decode(rawXml, 'out')
+  changed.value.children[0].attrs.r = '5'
+  assert.match(changed.toMessage(), /r='5'/)
+  const rawJson = '{"t":"xt","b":{"r":-1,"o":{"_cmd":"x","n":1.0}}}'
+  assert.equal(decode(rawJson, 'in').toMessage(), rawJson)
+})
