@@ -34,6 +34,12 @@ function packHash (id) {
 function decodePack (buf) {
   const first = buf[0]
   if (first === 0x7B || first === 0x5B) return JSON.parse(buf.toString('utf8'))
+  // Usually the download is the compressed data itself (the game copies it
+  // into a ByteArray, inflates it, then reads one AMF3 object).
+  for (const inflate of [zlib.inflateRawSync, zlib.inflateSync]) {
+    try { return readAmf3(inflate(buf)) } catch (_) {}
+  }
+  // Otherwise it may be wrapped as an AMF3 byte array first.
   const outer = readAmf3(buf)
   const inner = Buffer.isBuffer(outer) ? outer : buf
   let raw
