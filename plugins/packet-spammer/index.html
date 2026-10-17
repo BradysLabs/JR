@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Packet Spammer</title>
+  <style>
+    :root {
+      --bg: #0b0b0c; --panel: #111113; --line: #1f1f22; --line2: #2f2f34;
+      --text: #ededee; --dim: #a6a6ac; --faint: #6c6c72; --bad: #f87171;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      display: flex; flex-direction: column; padding: 16px; gap: 12px;
+    }
+    h1 { font-size: 16px; font-weight: 650; margin: 0; letter-spacing: -0.2px; }
+    .sub { color: var(--faint); font-size: 12px; margin-top: 2px; }
+    textarea, select, input {
+      background: var(--panel); color: var(--text); border: 1px solid var(--line2);
+      border-radius: 9px; font: inherit; padding: 8px 10px; outline: none;
+    }
+    textarea:focus, select:focus, input:focus { border-color: #5a5a60; }
+    textarea { width: 100%; min-height: 96px; resize: vertical; font-family: ui-monospace, "JetBrains Mono", Consolas, monospace; font-size: 12px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .row label { color: var(--dim); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    input[type=number] { width: 74px; }
+    button {
+      height: 34px; padding: 0 14px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer;
+      background: transparent; color: var(--text); border: 1px solid var(--line2);
+    }
+    button:hover:not(:disabled) { border-color: #5a5a60; }
+    button.primary { background: #f4f4f5; color: #0b0b0c; border: 0; }
+    button.primary:hover:not(:disabled) { background: #fff; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    .sp { flex: 1; }
+    .list { flex: 1; min-height: 80px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+    .empty { color: var(--faint); padding: 18px; text-align: center; font-size: 12.5px; }
+    .step { display: grid; grid-template-columns: 54px 1fr 54px 28px; gap: 8px; align-items: center; padding: 7px 10px; border-top: 1px solid var(--line); }
+    .step:first-child { border-top: 0; }
+    .step.active { background: #1a1a1d; }
+    .step .to { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; }
+    .step code { font-family: ui-monospace, "JetBrains Mono", Consolas, monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .step .delay { color: var(--faint); font-size: 12px; text-align: right; }
+    .step button { width: 28px; height: 28px; padding: 0; border: 0; color: var(--faint); font-weight: 400; }
+    .step button:hover { color: var(--text); }
+    #status { font-size: 12px; color: var(--faint); min-height: 18px; }
+    #status.error { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Packet Spammer</h1>
+    <div class="sub">One packet per line. <code>{room}</code> becomes your current room.</div>
+  </div>
+
+  <textarea id="packets" spellcheck="false" placeholder="%xt%o%qat%{room}%questready%0%"></textarea>
+
+  <div class="row">
+    <label>Send to
+      <select id="to">
+        <option value="server">Server</option>
+        <option value="game">My game only</option>
+      </select>
+    </label>
+    <label>Wait <input id="delay" type="number" min="0.05" step="0.05" value="1"> s</label>
+    <span class="sp"></span>
+    <button id="add">Add to list</button>
+    <button id="send" class="primary">Send now</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="row">
+    <label><input id="loop" type="checkbox"> Repeat the list</label>
+    <span class="sp"></span>
+    <button id="clear">Clear list</button>
+    <button id="stop" disabled>Stop</button>
+    <button id="run" class="primary">Run list</button>
+  </div>
+
+  <div id="status"></div>
+
+  <script src="runner.js"></script>
+  <script>
+    (async () => {
+      const $ = (id) => document.getElementById(id)
+      const jam = window.jam || await new Promise(resolve => {
+        const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 25)
+      })
+      const { dispatch } = jam
+      const { splitPackets, sendOne, run } = window.SpammerRunner
+
+      // Saved per JR profile.
+      const store = jam.storage || {
+        get: (k, d) => { try { const v = localStorage.getItem('spammer.' + k); return v === null ? d : JSON.parse(v) } catch (_) { return d } },
+        set: (k, v) => { try { localStorage.setItem('spammer.' + k, JSON.stringify(v)) } catch (_) {} }
+      }
+
+      let steps = await store.get('steps', [])
+      if (!Array.isArray(steps)) steps = []
+      let runner = null
+
+      const setStatus = (text, isError) => {
+        $('status').textContent = text || ''
+        $('status').className = isError ? 'error' : ''
+      }
+      const save = () => store.set('steps', steps)
+      const label = (to) => (to === 'game' ? 'Game' : 'Server')
+
+      function render (active = -1) {
+        const list = $('list')
+        list.textContent = ''
+        if (!steps.length) {
+          const empty = document.createElement('div')
+          empty.className = 'empty'
+          empty.textContent = 'Your list is empty. Type packets above and press Add to list.'
+          list.appendChild(empty)
+        }
+        steps.forEach((step, i) => {
+          const row = document.createElement('div')
+          row.className = 'step' + (i === active ? ' active' : '')
+          const to = document.createElement('span')
+          to.className = 'to'
+          to.textContent = label(step.to)
+          const code = document.createElement('code')
+          code.textContent = step.text
+          code.title = step.text
+          const delay = document.createElement('span')
+          delay.className = 'delay'
+          delay.textContent = `${step.delay}s`
+          const remove = document.createElement('button')
+          remove.title = 'Remove'
+          remove.textContent = '✕'
+          remove.disabled = !!runner
+          remove.onclick = () => { steps.splice(i, 1); save(); render() }
+          row.append(to, code, delay, remove)
+          list.appendChild(row)
+        })
+        $('run').disabled = !!runner || !steps.length
+        $('stop').disabled = !runner
+        $('clear').disabled = !!runner || !steps.length
+      }
+
+      $('packets').addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault()
+          const t = e.target
+          const s = t.selectionStart
+          t.value = t.value.slice(0, s) + '  ' + t.value.slice(t.selectionEnd)
+          t.selectionStart = t.selectionEnd = s + 2
+        }
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) $('send').click()
+      })
+
+      $('send').onclick = async () => {
+        const packets = splitPackets($('packets').value)
+        if (!packets.length) return setStatus('Type a packet first.', true)
+        try {
+          for (const text of packets) await sendOne(dispatch, $('to').value, text)
+          setStatus(`Sent ${packets.length} packet${packets.length === 1 ? '' : 's'}.`)
+        } catch (error) {
+          setStatus(error.message, true)
+        }
+      }
+
+      $('add').onclick = () => {
+        const packets = splitPackets($('packets').value)
+        if (!packets.length) return setStatus('Type a packet first.', true)
+        const delay = Math.max(window.SpammerRunner.MIN_DELAY, Number($('delay').value) || 1)
+        for (const text of packets) steps.push({ to: $('to').value, text, delay })
+        save()
+        render()
+        setStatus('')
+      }
+
+      $('clear').onclick = () => { steps = []; save(); render() }
+
+      $('run').onclick = () => {
+        if (!steps.length) return
+        setStatus($('loop').checked ? 'Running on repeat…' : 'Running…')
+        runner = run(dispatch, steps.slice(), {
+          loop: $('loop').checked,
+          onStep: (i) => render(i),
+          onError: (error) => setStatus(error.message, true),
+          onDone: () => {
+            runner = null
+            render()
+            if ($('status').className !== 'error') setStatus('Finished.')
+          }
+        })
+        render(0)
+      }
+
+      $('stop').onclick = () => { if (runner) runner.stop() }
+      window.addEventListener('beforeunload', () => { if (runner) runner.stop() })
+
+      render()
+    })()
+  </script>
+</body>
+</html>

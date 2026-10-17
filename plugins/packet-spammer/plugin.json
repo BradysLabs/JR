@@ -1,0 +1,10 @@
+{
+  "name": "Packet Spammer",
+  "description": "Send packets, or build a list of packets that repeats on a timer.",
+  "author": "BradysLabs",
+  "category": "Tools",
+  "icon": "fa-bolt",
+  "type": "ui",
+  "main": "index.html",
+  "game": "*"
+}

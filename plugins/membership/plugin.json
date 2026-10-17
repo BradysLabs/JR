@@ -1,0 +1,10 @@
+{
+  "name": "Membership",
+  "description": "Shows member-only features on your own game. Others don't see it, and you can't buy member items or go on member adventures.",
+  "author": "BradysLabs",
+  "category": "Gameplay",
+  "icon": "fa-crown",
+  "type": "game",
+  "main": "index.js",
+  "game": "animal-jam-classic"
+}
