@@ -152,10 +152,13 @@ class GameServer extends EventEmitter {
       startedAt: Date.now()
     }
     const port = String(this.proxyPort())
+    // The game connects straight to JR. ingressXt is cleared on purpose:
+    // with it set, the game thinks it's behind Animal Jam's load balancer and
+    // sends routing messages the real server rejects.
     const answer = {
       smartfoxServer: '127.0.0.1',
       smartfoxPort: port,
-      ingressXt: `127.0.0.1:${port}`
+      ingressXt: ''
     }
     for (const key of Object.keys(flashVars)) if (/^smartfoxServer\d+$/.test(key)) answer[key] = '127.0.0.1'
     if (this.session.content) answer.content = `${this.url}/content/`

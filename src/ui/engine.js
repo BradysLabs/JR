@@ -86,6 +86,18 @@ module.exports = function createEngine (info) {
     }
   })
 
+  // Animal Jam's server sends Flash access rules that only allow its own
+  // websites. The game is loaded from JR here, so give it open rules instead.
+  dispatch.onMessage({
+    type: 'aj',
+    callback: ({ message }) => {
+      if (message.type === null && typeof message.raw === 'string' && message.raw.includes('cross-domain-policy')) {
+        message.format = 'text'
+        message.value = '<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>'
+      }
+    }
+  })
+
   let serverName = null
   gameServer.on('session', (s) => { serverName = s.server; events.emit('status') })
   dispatch.on('connected', () => events.emit('status'))

@@ -144,7 +144,7 @@ test('game server: session swap, content pass-through, patched client', async ()
     assert.deepEqual(session, {
       smartfoxServer: '127.0.0.1',
       smartfoxPort: '52814',
-      ingressXt: '127.0.0.1:52814',
+      ingressXt: '',
       smartfoxServer1: '127.0.0.1',
       content: gs.url + '/content/',
       mdUrl: gs.url + '/md/',
