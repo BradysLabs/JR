@@ -127,7 +127,8 @@ class ProfileStore {
 
     const all = this._all()
     const p = all.find(x => x.id === id)
-    p.lastUsedAt = Date.now()
+    // Strictly newer than every other profile, even within the same millisecond.
+    p.lastUsedAt = Math.max(Date.now(), ...all.map(x => (x.lastUsedAt || 0) + 1))
     this._save(all)
 
     openHere.add(dir)

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asset Browser</title>
+  <style>
+    :root {
+      --bg: #16171f;
+      --panel: #1e1f2e;
+      --panel2: #252638;
+      --border: rgba(156, 163, 175, 0.15);
+      --text: #e2e8f0;
+      --muted: rgba(255, 255, 255, 0.45);
+      --accent: #34d399;
+      --gem: #34d399;
+      --diamond: #60a5fa;
+      --member: #fbbf24;
+      --err: #ef4444;
+      --mono: "SF Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; }
+    body { display: flex; flex-direction: column; overflow: hidden; }
+    .hidden { display: none !important; }
+    .spacer { flex: 1; }
+    code, .mono { font-family: var(--mono); }
+
+    .bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .bar h1 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .bar h1 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .bar h1 .dot.ok { background: var(--accent); }
+    .bar h1 .dot.err { background: var(--err); }
+    #status { color: var(--muted); font-size: 11px; }
+    .tabs { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .tabs button { padding: 6px 12px; font-size: 12px; background: transparent; color: var(--muted); border: none; cursor: pointer; }
+    .tabs button.active { background: var(--panel); color: var(--text); }
+
+    .btn { padding: 6px 11px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+      background: var(--panel); color: var(--text); cursor: pointer; transition: all .15s ease; white-space: nowrap; }
+    .btn:hover { border-color: rgba(156,163,175,0.35); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #0b0c10; }
+    .btn.small { padding: 3px 8px; font-size: 11px; }
+    .btn:disabled { opacity: .5; cursor: default; }
+
+    input, select { background: var(--panel); border: 1px solid var(--border); border-radius: 5px; padding: 6px 9px;
+      color: #fff; font-size: 12px; font-family: inherit; }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+    .page { flex: 1; min-height: 0; display: flex; }
+
+    .browse { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); align-items: center; }
+    .filters #q { flex: 1; min-width: 200px; }
+    .filters .num { width: 78px; }
+    .seg { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .seg button { padding: 5px 9px; font-size: 11px; background: transparent; color: var(--muted); border: none; cursor: pointer; }
+    .seg button.active { background: var(--panel); color: var(--text); }
+    .count { color: var(--muted); font-size: 11px; padding: 6px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+
+    .thead, .trow { display: grid; grid-template-columns: 70px 1fr 110px 80px 60px; gap: 10px; align-items: center; padding: 0 14px; }
+    .thead { height: 28px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; font-weight: 600;
+      border-bottom: 1px solid var(--border); }
+    .thead span { cursor: pointer; user-select: none; }
+    .thead span.sorted { color: var(--text); }
+    #rows { flex: 1; min-height: 0; overflow-y: auto; position: relative; }
+    #rows .spacerY { position: relative; }
+    .trow { position: absolute; left: 0; right: 0; height: 30px; cursor: pointer; border-bottom: 1px solid rgba(156,163,175,0.05); }
+    .trow:hover { background: rgba(255,255,255,0.04); }
+    .trow.sel { background: rgba(52,211,153,0.13); }
+    .trow .id { font-family: var(--mono); color: var(--muted); }
+    .trow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .trow .nm.none { color: var(--muted); font-style: italic; }
+    .trow .cost { font-family: var(--mono); text-align: right; }
+    .cur { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 5px; vertical-align: middle; }
+    .cur.gems { background: var(--gem); }
+    .cur.diamonds { background: var(--diamond); transform: rotate(45deg); border-radius: 1px; }
+    .pill { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: .3px; }
+    .pill.m { background: rgba(251,191,36,0.15); color: var(--member); }
+    .pill.f { background: rgba(255,255,255,0.06); color: var(--muted); }
+    .pill.k { background: rgba(255,255,255,0.06); color: var(--text); }
+    .empty { text-align: center; color: var(--muted); padding: 40px 20px; line-height: 1.6; }
+
+    .detail { width: 360px; flex-shrink: 0; border-left: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; }
+    .detail .inner { flex: 1; overflow-y: auto; padding: 14px; }
+    .dtitle { font-size: 15px; font-weight: 700; margin: 0 0 6px; word-break: break-word; }
+    .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .stat { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .stat > div { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+    .stat .v { font-size: 16px; font-weight: 700; font-family: var(--mono); }
+    .stat .k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    h3 { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+    .addr { display: flex; gap: 6px; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; }
+    .addr code { flex: 1; font-size: 10.5px; word-break: break-all; color: #c9d1d9; }
+    .hint { color: var(--muted); font-size: 11px; line-height: 1.45; margin-top: 5px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    td { padding: 4px 6px; border-bottom: 1px solid rgba(156,163,175,0.08); vertical-align: top; }
+    td.k { color: var(--muted); font-family: var(--mono); width: 42%; word-break: break-all; }
+    td.v { font-family: var(--mono); word-break: break-all; cursor: copy; }
+    td.v .res { display: block; color: var(--accent); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .placeholder { color: var(--muted); text-align: center; padding: 50px 20px; line-height: 1.6; }
+
+    .tool { flex: 1; overflow-y: auto; padding: 16px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 12px; max-width: 900px; }
+    .card h2 { font-size: 13px; margin: 0 0 4px; }
+    .card p { color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+    .row label { color: var(--muted); font-size: 11px; min-width: 90px; }
+    .row input { flex: 1; min-width: 160px; }
+    .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .steps { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; font-size: 11px; margin-top: 8px; }
+    .steps .k { color: var(--muted); }
+    .steps .v { font-family: var(--mono); word-break: break-all; }
+    pre.json { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-family: var(--mono);
+      font-size: 11px; max-height: 420px; overflow: auto; margin: 8px 0 0; white-space: pre-wrap; word-break: break-all; }
+    .summary { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .summary > div { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+    .summary .v { font-weight: 700; font-family: var(--mono); }
+    .summary .k { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+    .pack-results { display: grid; gap: 6px; }
+    .pack-result { display: flex; align-items: center; gap: 10px; padding: 7px 9px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+    .pack-result > span:first-child { min-width: 130px; font-weight: 600; }
+    .pack-result .pack-active { color: var(--accent); flex: 1; }
+    .pack-result .pack-missing { color: var(--muted); flex: 1; }
+
+    #toast { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: var(--panel2);
+      border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; font-size: 12px; opacity: 0;
+      transition: opacity .2s ease; pointer-events: none; }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <h1><span class="dot" id="dot"></span> Asset Browser</h1>
+    <div class="tabs" id="tabs">
+      <button data-tab="clothing" class="active">Clothing</button>
+      <button data-tab="den">Den Items</button>
+      <button data-tab="packs">Defpacks</button>
+      <button data-tab="url">Address Builder</button>
+    </div>
+    <span class="spacer"></span>
+    <span id="status">Connecting…</span>
+    <button class="btn small" id="refresh" title="Check animaljam.com for a newer game version">Check for update</button>
+  </div>
+
+  <div class="page" id="browsePage">
+    <div class="browse">
+      <div class="filters">
+        <input id="q" type="text" spellcheck="false" placeholder="Search by name or id…  e.g. spiked, 1037, 200-500">
+        <div class="seg" id="fMembers">
+          <button data-v="all" class="active">All</button>
+          <button data-v="m">Members</button>
+          <button data-v="f">Free</button>
+        </div>
+        <div class="seg" id="fCurrency">
+          <button data-v="all" class="active">Any</button>
+          <button data-v="gems">Gems</button>
+          <button data-v="diamonds">Diamonds</button>
+        </div>
+        <input class="num" id="fMin" type="number" min="0" placeholder="Min">
+        <input class="num" id="fMax" type="number" min="0" placeholder="Max">
+        <label style="color:var(--muted);display:flex;gap:5px;align-items:center"><input type="checkbox" id="fNamed" checked> Named only</label>
+      </div>
+      <div class="count"><span id="count">0 items</span><span class="spacer"></span><span id="deploy"></span></div>
+      <div class="thead" id="thead">
+        <span data-sort="id">ID</span>
+        <span data-sort="name">Name</span>
+        <span data-sort="cost" style="text-align:right">Value</span>
+        <span data-sort="members">Access</span>
+        <span></span>
+      </div>
+      <div id="rows"><div class="spacerY" id="spacerY"></div></div>
+    </div>
+    <div class="detail"><div class="inner" id="detail"><div class="placeholder">Select an item to see its details,<br>raw game data and file addresses.</div></div></div>
+  </div>
+
+  <div class="page hidden" id="packsPage">
+    <div class="tool">
+      <div class="card">
+        <h2>Defpack Viewer</h2>
+        <p>Defpacks are the game's data files: item lists, names, prices and settings. Enter a pack id to see its address, download it and browse what's inside.</p>
+        <div class="quick" id="quickPacks"></div>
+        <div class="row">
+          <label>Pack id</label>
+          <input id="packId" type="text" placeholder="e.g. 1000" spellcheck="false">
+          <button class="btn primary" id="loadPack">Load</button>
+          <button class="btn" id="savePack" disabled>Save .json</button>
+        </div>
+        <div class="addr"><code id="packUrl">—</code><button class="btn small" data-copy-from="packUrl">Copy</button></div>
+        <div class="summary" id="packSummary"></div>
+        <div class="row" style="margin-top:10px">
+          <input id="packFilter" type="text" placeholder="Filter entries…" spellcheck="false">
+        </div>
+        <pre class="json" id="packJson">Load a pack to see its contents.</pre>
+      </div>
+      <div class="card">
+        <h2>Current known packs</h2>
+        <p>Check the known pack catalog against the current game version. This checks only listed packs; it does not scan arbitrary IDs.</p>
+        <div class="row"><button class="btn primary" id="scanPacks">Check known packs</button><span class="hint" id="scanStatus">Uses the current deploy version shown above.</span></div>
+        <div id="activePacks" class="pack-results"></div>
+      </div>
+      <div class="card">
+        <h2>Discover defpacks</h2>
+        <p>Scan a numeric ID range on the current deploy version. Only packs that download and decode successfully are listed. Limit: 300 IDs per scan; requests run a few at a time.</p>
+        <div class="row">
+          <label for="scanStart">ID range</label>
+          <input id="scanStart" type="number" min="1" value="1000" aria-label="First defpack ID">
+          <span>to</span>
+          <input id="scanEnd" type="number" min="1" value="1100" aria-label="Last defpack ID">
+          <button class="btn primary" id="scanRange">Scan range</button>
+        </div>
+        <div class="hint" id="rangeScanStatus">Uses the current deploy version shown above.</div>
+        <div id="rangeScanResults" class="pack-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page hidden" id="urlPage">
+    <div class="tool">
+      <div class="card">
+        <h2>Address Builder</h2>
+        <p>Animal Jam's content server hides file names. Each file name is mixed with a secret key and hashed (MD5), and the result is the file's address. Enter a folder and file name to get the real address.</p>
+        <div class="row"><label>Game version</label><input id="uDeploy" type="text" spellcheck="false"></div>
+        <div class="row">
+          <label>Folder</label>
+          <input id="uFolder" type="text" value="defPacks" spellcheck="false">
+        </div>
+        <div class="row"><label>File name</label><input id="uFile" type="text" value="1000" spellcheck="false"></div>
+        <div class="quick" id="quickFolders"></div>
+        <div class="addr"><code id="uUrl">—</code><button class="btn small" data-copy-from="uUrl">Copy</button></div>
+        <div class="steps" id="uSteps"></div>
+      </div>
+      <div class="card">
+        <h2>Known address patterns</h2>
+        <div class="steps">
+          <span class="k">Item data</span><span class="v">/{version}/defPacks/{hash(pack id)}</span>
+          <span class="k">Room data</span><span class="v">/{version}/roomDefs/{map}/{hash(file.xroom)}</span>
+          <span class="k">Game version</span><span class="v">deploy_version from animaljam.com/flashvars</span>
+        </div>
+        <p style="margin-top:10px">Based on animaljam.js by Sxip. Item and room data are confirmed; other folders are untested.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="index.js"></script>
+</body>
+</html>

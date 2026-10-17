@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pet Catalog</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10131a;
+      --panel: #171b24;
+      --panel-2: #1d2330;
+      --border: #2b3342;
+      --text: #f4f6fb;
+      --muted: #8993a6;
+      --accent: #6c7cff;
+      --accent-2: #8a62ff;
+      --success: #37d79a;
+      --warning: #f4c95d;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100vh;
+      padding: 22px;
+      background: radial-gradient(circle at top left, rgba(108,124,255,.12), transparent 35%), var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .container { width: 100%; max-width: 820px; margin: 0 auto; }
+    .header { display: flex; align-items: center; gap: 13px; margin-bottom: 18px; }
+    .icon {
+      width: 48px; height: 48px; display: grid; place-items: center;
+      border-radius: 14px; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      font-size: 24px; box-shadow: 0 10px 28px rgba(108,124,255,.25);
+    }
+    h1 { margin: 0; font-size: 24px; font-weight: 750; letter-spacing: -.4px; }
+    .subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .card {
+      margin-bottom: 13px; padding: 17px; background: rgba(23,27,36,.96);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 12px 30px rgba(0,0,0,.16);
+    }
+    .section-title {
+      margin: 0 0 13px; color: var(--muted); font-size: 11px;
+      font-weight: 750; text-transform: uppercase; letter-spacing: .8px;
+    }
+    .search-row { display: flex; gap: 8px; }
+    #search {
+      flex: 1; width: 100%; height: 44px; padding: 0 13px; background: var(--panel-2);
+      border: 1px solid var(--border); border-radius: 9px; outline: none; color: var(--text);
+    }
+    #search::placeholder { color: #657085; }
+    #search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,124,255,.1); }
+    .secondary-button, .filter-button, .small-button {
+      background: #252c39; border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+      font-size: 11px; font-weight: 700;
+    }
+    .secondary-button { height: 44px; padding: 0 14px; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .filter-button { padding: 7px 10px; color: #bec7d7; }
+    .filter-button:hover, .secondary-button:hover, .small-button:hover { background: #2c3545; }
+    .filter-button.active { border-color: var(--accent); background: rgba(108,124,255,.16); color: white; }
+    #resultCount { margin-top: 10px; color: var(--muted); font-size: 11px; }
+    #results, #recent-list { display: flex; flex-direction: column; gap: 6px; }
+    #results { max-height: 350px; overflow-y: auto; margin-top: 10px; }
+    .pet-row, .recent-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 12px; background: rgba(29,35,48,.7); border: 1px solid var(--border);
+      border-radius: 8px; transition: border-color .12s ease, background .12s ease;
+    }
+    .pet-row { cursor: pointer; }
+    .pet-row:hover, .recent-row:hover { background: #222a38; }
+    .pet-row.selected { border-color: var(--accent); background: rgba(108,124,255,.13); }
+    .pet-main { min-width: 0; }
+    .pet-name { font-size: 13px; font-weight: 650; }
+    .pet-meta { margin-top: 3px; color: var(--muted); font: 10px Consolas, "Courier New", monospace; }
+    .small-button { height: 32px; padding: 0 9px; flex: 0 0 auto; }
+    .favorite.active { color: #ffd866; }
+    .selected-name { margin-bottom: 12px; font-size: 20px; font-weight: 750; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 13px; }
+    .badge { padding: 4px 7px; border-radius: 5px; background: #252c39; color: #bec7d7; font-size: 10px; font-weight: 700; }
+    .badge.member { background: rgba(244,201,93,.12); color: var(--warning); }
+    .badge.open { background: rgba(55,215,154,.1); color: var(--success); }
+    .selected-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .stat { padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+    .stat-value { font: 750 16px Consolas, "Courier New", monospace; overflow-wrap: anywhere; }
+    .stat-label { margin-top: 4px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .6px; }
+    .note { color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .purchase-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .purchase-button { min-height: 38px; padding: 0 13px; border: 1px solid var(--border); border-radius: 8px; background: #252c39; color: var(--text); font-size: 11px; font-weight: 700; }
+    .purchase-button.primary { border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; }
+    .purchase-button:disabled { opacity: .45; cursor: default; }
+    .packet-label { display: block; margin-top: 12px; color: var(--muted); font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .6px; }
+    #purchase-packet { display: block; width: 100%; min-height: 76px; margin-top: 6px; padding: 10px; resize: vertical; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: 11px/1.5 Consolas, "Courier New", monospace; overflow-wrap: anywhere; }
+    #purchase-packet:focus { border-color: var(--accent); outline: none; }
+    #purchase-packet:disabled { opacity: .55; }
+    .purchase-status { min-height: 18px; margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .purchase-status.success { color: var(--success); }
+    .purchase-status.warning, .purchase-status.waiting { color: var(--warning); }
+    .purchase-status.error { color: #ff9e9e; }
+    .empty { padding: 14px; color: var(--muted); font-size: 11px; text-align: center; }
+    .recent-label { display: flex; align-items: baseline; gap: 7px; }
+    .recent-name { font-size: 12px; font-weight: 600; }
+    .recent-id { color: var(--muted); font: 10px Consolas, monospace; }
+    @media (max-width: 620px) {
+      body { padding: 13px; }
+      .selected-grid { grid-template-columns: repeat(2, 1fr); }
+      .search-row { flex-direction: column; }
+      #search, .secondary-button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <div class="icon" aria-hidden="true">🐾</div>
+      <div>
+        <h1>Pet Catalog</h1>
+        <p class="subtitle">Animal Jam Classic · 119 pet definitions</p>
+      </div>
+    </header>
+
+    <section class="card" aria-labelledby="find-title">
+      <h2 class="section-title" id="find-title">Find a Pet</h2>
+      <div class="search-row">
+        <input id="search" type="search" autocomplete="off" spellcheck="false" placeholder="Search by pet name or definition ID…" aria-label="Search pets">
+        <button id="clear-search" class="secondary-button" type="button">Clear</button>
+      </div>
+      <div class="filter-row" role="group" aria-label="Filter pets">
+        <button class="filter-button active" data-filter="all" type="button">All</button>
+        <button class="filter-button" data-filter="member" type="button">Member</button>
+        <button class="filter-button" data-filter="open" type="button">Non-member</button>
+        <button class="filter-button" data-filter="reward" type="button">Reward</button>
+        <button class="filter-button" data-filter="egg" type="button">Egg</button>
+        <button class="filter-button" data-filter="favorites" type="button">★ Favorites</button>
+      </div>
+      <div id="result-count" aria-live="polite">Loading pets…</div>
+      <div id="results" role="listbox" aria-label="Pet definitions"></div>
+    </section>
+
+    <section class="card" aria-labelledby="selected-title">
+      <h2 class="section-title" id="selected-title">Selected Pet</h2>
+      <div id="selected-name" class="selected-name">Select a pet</div>
+      <div id="badges" class="badges"></div>
+      <div class="selected-grid">
+        <div class="stat"><div id="selected-id" class="stat-value">—</div><div class="stat-label">Definition ID</div></div>
+        <div class="stat"><div id="selected-cost" class="stat-value">—</div><div class="stat-label">Definition Cost</div></div>
+        <div class="stat"><div id="selected-member" class="stat-value">—</div><div class="stat-label">Member Flag</div></div>
+        <div class="stat"><div id="selected-type" class="stat-value">—</div><div class="stat-label">Type Code</div></div>
+        <div class="stat"><div id="selected-status" class="stat-value">—</div><div class="stat-label">Status Code</div></div>
+        <div class="stat"><div id="selected-title-ref" class="stat-value">—</div><div class="stat-label">Title String ID</div></div>
+        <div class="stat"><div id="selected-media-ref" class="stat-value">—</div><div class="stat-label">Media Reference</div></div>
+        <div class="stat"><div id="selected-reward" class="stat-value">—</div><div class="stat-label">Reward / Egg</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Adopting a Pet</h2>
+      <div id="purchase-id" class="note">Select a pet to begin.</div>
+      <p class="note">First, make one normal purchase in the in-game Pet Creator while this window is open. Pet Catalog captures that request automatically. The packet below is editable and shows exactly what Buy will send. Only the selected pet definition ID may differ from the captured request; the server decides availability, membership, and price. Other shop purchase flows are not captured.</p>
+      <label class="packet-label" for="purchase-packet">Purchase packet</label>
+      <textarea id="purchase-packet" spellcheck="false" autocomplete="off" aria-label="Editable pet purchase packet" placeholder="Make a normal Pet Creator purchase to capture a packet…" disabled></textarea>
+      <div class="purchase-actions">
+        <button id="buy-pet" class="purchase-button primary" type="button" disabled>Buy Selected Pet</button>
+      </div>
+      <div id="purchase-status" class="purchase-status" role="status" aria-live="polite">Waiting to capture a normal Pet Creator purchase. No requests are sent until you press Buy.</div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Recently Viewed</h2>
+      <div id="recent-list"><div class="empty">No recently viewed pets.</div></div>
+    </section>
+  </main>
+  <script src="pets.js"></script>
+  <script src="index.js"></script>
+</body>
+</html>

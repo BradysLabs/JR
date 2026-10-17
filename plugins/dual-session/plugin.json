@@ -1,0 +1,9 @@
+{
+  "name": "Dual Session Launcher",
+  "description": "Launch the official AJ Classic client alongside Jam's patched client.",
+  "category": "Tools",
+  "icon": "fa-window-restore",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

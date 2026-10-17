@@ -1,0 +1,2865 @@
+[
+{
+"name": "Room Main",
+"path": "activitygeography/room_main",
+"category": "Activitygeography",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Queststaging 421 0 585",
+"path": "adventures/queststaging_421_0_585",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Queststaging 421 0 586",
+"path": "adventures/queststaging_421_0_586",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure 10a",
+"path": "adventures/room_adventure_10a",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure 10b",
+"path": "adventures/room_adventure_10b",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure 10c",
+"path": "adventures/room_adventure_10c",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure 11a",
+"path": "adventures/room_adventure_11a",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure 11b",
+"path": "adventures/room_adventure_11b",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure 11c",
+"path": "adventures/room_adventure_11c",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure 11d",
+"path": "adventures/room_adventure_11d",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure 12a Party",
+"path": "adventures/room_adventure_12a_party",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 13a 2016",
+"path": "adventures/room_adventure_13a_2016",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 14a 2015",
+"path": "adventures/room_adventure_14a_2015",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 15a",
+"path": "adventures/room_adventure_15a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 16a 2016",
+"path": "adventures/room_adventure_16a_2016",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 17a",
+"path": "adventures/room_adventure_17a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 18a",
+"path": "adventures/room_adventure_18a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 19 2017",
+"path": "adventures/room_adventure_19_2017",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 1a",
+"path": "adventures/room_adventure_1a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 1b",
+"path": "adventures/room_adventure_1b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 1x",
+"path": "adventures/room_adventure_1x",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 20a",
+"path": "adventures/room_adventure_20a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 20b",
+"path": "adventures/room_adventure_20b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 20c",
+"path": "adventures/room_adventure_20c",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 21a",
+"path": "adventures/room_adventure_21a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 21b",
+"path": "adventures/room_adventure_21b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 21c",
+"path": "adventures/room_adventure_21c",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 21d",
+"path": "adventures/room_adventure_21d",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 22a",
+"path": "adventures/room_adventure_22a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 22b",
+"path": "adventures/room_adventure_22b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 22c",
+"path": "adventures/room_adventure_22c",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 22d",
+"path": "adventures/room_adventure_22d",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 22e",
+"path": "adventures/room_adventure_22e",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 23a",
+"path": "adventures/room_adventure_23a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 23b",
+"path": "adventures/room_adventure_23b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 24",
+"path": "adventures/room_adventure_24",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 25a",
+"path": "adventures/room_adventure_25a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 25b",
+"path": "adventures/room_adventure_25b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 25c",
+"path": "adventures/room_adventure_25c",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 25d",
+"path": "adventures/room_adventure_25d",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 25e",
+"path": "adventures/room_adventure_25e",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 26a",
+"path": "adventures/room_adventure_26a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 26b",
+"path": "adventures/room_adventure_26b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 27a",
+"path": "adventures/room_adventure_27a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 28a",
+"path": "adventures/room_adventure_28a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 28b",
+"path": "adventures/room_adventure_28b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 28c",
+"path": "adventures/room_adventure_28c",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 28d",
+"path": "adventures/room_adventure_28d",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 29a",
+"path": "adventures/room_adventure_29a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 29b",
+"path": "adventures/room_adventure_29b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 2a",
+"path": "adventures/room_adventure_2a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 2b",
+"path": "adventures/room_adventure_2b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 3a",
+"path": "adventures/room_adventure_3a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 3b",
+"path": "adventures/room_adventure_3b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 3c",
+"path": "adventures/room_adventure_3c",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 3d",
+"path": "adventures/room_adventure_3d",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 3f",
+"path": "adventures/room_adventure_3f",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 3h",
+"path": "adventures/room_adventure_3h",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 3i",
+"path": "adventures/room_adventure_3i",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 4a",
+"path": "adventures/room_adventure_4a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 4b",
+"path": "adventures/room_adventure_4b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 5a",
+"path": "adventures/room_adventure_5a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 5b",
+"path": "adventures/room_adventure_5b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 6a",
+"path": "adventures/room_adventure_6a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 6b",
+"path": "adventures/room_adventure_6b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 6c",
+"path": "adventures/room_adventure_6c",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 6d",
+"path": "adventures/room_adventure_6d",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 6e",
+"path": "adventures/room_adventure_6e",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 6f",
+"path": "adventures/room_adventure_6f",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 7a",
+"path": "adventures/room_adventure_7a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 7b",
+"path": "adventures/room_adventure_7b",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 8a",
+"path": "adventures/room_adventure_8a",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Adventure 9a",
+"path": "adventures/room_adventure_9a",
+"category": "Adventures",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Adventure Tutorial",
+"path": "adventures/room_adventure_tutorial",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Books",
+"path": "adventures/room_books",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Journey 1",
+"path": "adventures/room_journey_1",
+"category": "Adventures",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Pet Shop",
+"path": "appondale/pet_shop",
+"category": "Appondale",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "appondale/room_main",
+"category": "Appondale",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Museum",
+"path": "appondale/room_museum",
+"category": "Appondale",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Museum Ant",
+"path": "appondale/room_museum_ant",
+"category": "Appondale",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Museumtheater",
+"path": "appondale/room_museumtheater",
+"category": "Appondale",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "artprintplayportrait/room_main",
+"category": "Artprintplayportrait",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "artstudiocolor/room_main",
+"category": "Artstudiocolor",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "artstudiogriddrawing/room_main",
+"category": "Artstudiogriddrawing",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "artstudiopaint/room_main",
+"category": "Artstudiopaint",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "artstudiopottery/room_main",
+"category": "Artstudiopottery",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "artstudioprint/room_main",
+"category": "Artstudioprint",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Game Main",
+"path": "astronomyassets/game_main",
+"category": "Astronomyassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Aushop",
+"path": "aussie/room_aushop",
+"category": "Aussie",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Hos",
+"path": "aussie/room_hos",
+"category": "Aussie",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "aussie/room_main",
+"category": "Aussie",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Bahari Bargains",
+"path": "bahari_bay/bahari_bargains",
+"category": "Bahari Bay",
+"joinable": true,
+"ocean": true
+},
+{
+"name": "Room Ancients",
+"path": "balloosh/room_ancients",
+"category": "Balloosh",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "balloosh/room_main",
+"category": "Balloosh",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Jamaalidays",
+"path": "balloosh/room_main_jamaalidays",
+"category": "Balloosh",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "bradychemistryset/room_main",
+"category": "Bradychemistryset",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Main Room",
+"path": "bradyexpeditionsassets/main_room",
+"category": "Bradyexpeditionsassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "bradyexpeditionsassets/room_main",
+"category": "Bradyexpeditionsassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "candycatcher/room_main",
+"category": "Candycatcher",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Untitled",
+"path": "candycatcher/untitled",
+"category": "Candycatcher",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "canyon_path/room_main",
+"category": "Canyon Path",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Main",
+"path": "canyon_path/room_main_main",
+"category": "Canyon Path",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Art Studio",
+"path": "coral_canyons/art_studio",
+"category": "Coral Canyons",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Academy",
+"path": "coral_canyons/room_academy",
+"category": "Coral Canyons",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "coral_canyons/room_main",
+"category": "Coral Canyons",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Rareitems",
+"path": "coral_canyons/room_rareitems",
+"category": "Coral Canyons",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Coral Pet",
+"path": "coralpets/coral_pet",
+"category": "Coralpets",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Main",
+"path": "cottoncandy/room_main",
+"category": "Cottoncandy",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Untitled",
+"path": "cottoncandy/untitled",
+"category": "Cottoncandy",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "craneassets/room_main",
+"category": "Craneassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Juice Bar",
+"path": "crystal_sands/juice_bar",
+"category": "Crystal Sands",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "crystal_sands/room_main",
+"category": "Crystal Sands",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Friendship",
+"path": "crystal_sands/room_main_friendship",
+"category": "Crystal Sands",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Tierney",
+"path": "crystal_sands/room_tierney",
+"category": "Crystal Sands",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Tiertheater",
+"path": "crystal_sands/room_tiertheater",
+"category": "Crystal Sands",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "distancechallenge/room_main",
+"category": "Distancechallenge",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "dolphinrace/room_main",
+"category": "Dolphinrace",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "dunkaphantom/room_main",
+"category": "Dunkaphantom",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "eagleflapassets/room_main",
+"category": "Eagleflapassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Barn1",
+"path": "epic_dens/room_barn1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Barn2",
+"path": "epic_dens/room_barn2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Beach1",
+"path": "epic_dens/room_beach1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Beach2",
+"path": "epic_dens/room_beach2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Bounce1",
+"path": "epic_dens/room_bounce1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Bounce2",
+"path": "epic_dens/room_bounce2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Cosmotree1",
+"path": "epic_dens/room_cosmotree1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Cottage2",
+"path": "epic_dens/room_cottage2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Cottage4",
+"path": "epic_dens/room_cottage4",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Crystal 1",
+"path": "epic_dens/room_crystal_1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Crystal 3",
+"path": "epic_dens/room_crystal_3",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Epicbetaden1",
+"path": "epic_dens/room_epicbetaden1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Fallfree",
+"path": "epic_dens/room_fallfree",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Friendshipfortress",
+"path": "epic_dens/room_friendshipfortress",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Gilbert1",
+"path": "epic_dens/room_gilbert1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Gilbert2",
+"path": "epic_dens/room_gilbert2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Ginger1",
+"path": "epic_dens/room_ginger1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Ginger2",
+"path": "epic_dens/room_ginger2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Ginger4",
+"path": "epic_dens/room_ginger4",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Graham1",
+"path": "epic_dens/room_graham1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Greely1",
+"path": "epic_dens/room_greely1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Greelyhalloween",
+"path": "epic_dens/room_greelyhalloween",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Haunted3",
+"path": "epic_dens/room_haunted3",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Haunted4",
+"path": "epic_dens/room_haunted4",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Haunted5",
+"path": "epic_dens/room_haunted5",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Lcastle1",
+"path": "epic_dens/room_lcastle1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Lcastle2",
+"path": "epic_dens/room_lcastle2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Lcastle5",
+"path": "epic_dens/room_lcastle5",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Liza1",
+"path": "epic_dens/room_liza1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Liza2",
+"path": "epic_dens/room_liza2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Peck1",
+"path": "epic_dens/room_peck1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Peck2",
+"path": "epic_dens/room_peck2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Peck3",
+"path": "epic_dens/room_peck3",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Pixel1",
+"path": "epic_dens/room_pixel1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Pixel4",
+"path": "epic_dens/room_pixel4",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Skyden1",
+"path": "epic_dens/room_skyden1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Skyden2",
+"path": "epic_dens/room_skyden2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Skyden3",
+"path": "epic_dens/room_skyden3",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Snofort",
+"path": "epic_dens/room_snofort",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Snofort2",
+"path": "epic_dens/room_snofort2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Solarcade2",
+"path": "epic_dens/room_solarcade2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Sprgctg1",
+"path": "epic_dens/room_sprgctg1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Sprgctg2",
+"path": "epic_dens/room_sprgctg2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Sprgctg3",
+"path": "epic_dens/room_sprgctg3",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Waterpark1",
+"path": "epic_dens/room_waterpark1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Winterp1",
+"path": "epic_dens/room_winterp1",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Winterp2",
+"path": "epic_dens/room_winterp2",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Winterp3",
+"path": "epic_dens/room_winterp3",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Winterp4",
+"path": "epic_dens/room_winterp4",
+"category": "Epic Dens",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "fallingphantoms/room_main",
+"category": "Fallingphantoms",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Main Room",
+"path": "fashionshow/main_room",
+"category": "Fashionshow",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Untitled",
+"path": "fashionshow/untitled",
+"category": "Fashionshow",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Fastfoodies",
+"path": "fastfoodies/fastfoodies",
+"category": "Fastfoodies",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "fastfoodies/room_main",
+"category": "Fastfoodies",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "feedingfrenzyassets/room_main",
+"category": "Feedingfrenzyassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Firstfive",
+"path": "first_five/room_firstfive",
+"category": "First Five",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Bg1",
+"path": "fortsmasherassets/room_bg1",
+"category": "Fortsmasherassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Bg2",
+"path": "fortsmasherassets/room_bg2",
+"category": "Fortsmasherassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Bg3",
+"path": "fortsmasherassets/room_bg3",
+"category": "Fortsmasherassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Bg4",
+"path": "fortsmasherassets/room_bg4",
+"category": "Fortsmasherassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Bg5",
+"path": "fortsmasherassets/room_bg5",
+"category": "Fortsmasherassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "fortsmasherassets/room_main",
+"category": "Fortsmasherassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "frogflyer/room_main",
+"category": "Frogflyer",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "gembreakerassets/room_main",
+"category": "Gembreakerassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Main Room",
+"path": "geographyassets/main_room",
+"category": "Geographyassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Main Room",
+"path": "glideassets/main_room",
+"category": "Glideassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "hedgehogassets/room_main",
+"category": "Hedgehogassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Halloween Room Main",
+"path": "holidays_and_celebrations/halloween/room_main",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween1",
+"path": "holidays_and_celebrations/room_jamaa_halloween1",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween2",
+"path": "holidays_and_celebrations/room_jamaa_halloween2",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween3",
+"path": "holidays_and_celebrations/room_jamaa_halloween3",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween4",
+"path": "holidays_and_celebrations/room_jamaa_halloween4",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween5",
+"path": "holidays_and_celebrations/room_jamaa_halloween5",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween6",
+"path": "holidays_and_celebrations/room_jamaa_halloween6",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween7",
+"path": "holidays_and_celebrations/room_jamaa_halloween7",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloweena",
+"path": "holidays_and_celebrations/room_jamaa_halloweena",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloweenb",
+"path": "holidays_and_celebrations/room_jamaa_halloweenb",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloweenc",
+"path": "holidays_and_celebrations/room_jamaa_halloweenc",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloweend",
+"path": "holidays_and_celebrations/room_jamaa_halloweend",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloweene",
+"path": "holidays_and_celebrations/room_jamaa_halloweene",
+"category": "Holidays And Celebrations",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "horserace/room_main",
+"category": "Horserace",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Clothes Shop",
+"path": "jamaa_township/clothes_shop",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Dance Club",
+"path": "jamaa_township/dance_club",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Furniture Room",
+"path": "jamaa_township/furniture_room",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Pillow Room",
+"path": "jamaa_township/pillow_room",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Alphahq",
+"path": "jamaa_township/room_alphahq",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Arcade",
+"path": "jamaa_township/room_arcade",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Diamonds",
+"path": "jamaa_township/room_diamonds",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "jamaa_township/room_main",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Friendship",
+"path": "jamaa_township/room_main_friendship",
+"category": "Jamaa Township",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Bb Theater",
+"path": "lost_temple_of_zios/bb_theater",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Brady Barr",
+"path": "lost_temple_of_zios/brady_barr",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Chamber Of Knowledge",
+"path": "lost_temple_of_zios/chamber_of_knowledge",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Chamber Of Knowledge Shop",
+"path": "lost_temple_of_zios/chamber_of_knowledge_shop",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Chamber Of Knowledge2",
+"path": "lost_temple_of_zios/chamber_of_knowledge2",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Archives",
+"path": "lost_temple_of_zios/room_archives",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Chamberbase",
+"path": "lost_temple_of_zios/room_chamberbase",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "lost_temple_of_zios/room_main",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Friendship",
+"path": "lost_temple_of_zios/room_main_friendship",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Jamaalidays",
+"path": "lost_temple_of_zios/room_main_jamaalidays",
+"category": "Lost Temple Of Zios",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "memoryassets/room_main",
+"category": "Memoryassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microbambooharvest/room_main",
+"category": "Microbambooharvest",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microducky/room_main",
+"category": "Microducky",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microgameinvasion/room_main",
+"category": "Microgameinvasion",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microgoldpanning/room_main",
+"category": "Microgoldpanning",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microhotcocoa/room_main",
+"category": "Microhotcocoa",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "micromirasays/room_main",
+"category": "Micromirasays",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microoatharvest/room_main",
+"category": "Microoatharvest",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "micropetsalon/room_main",
+"category": "Micropetsalon",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Untitled",
+"path": "micropetsalon/untitled",
+"category": "Micropetsalon",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "micropetwash/room_main",
+"category": "Micropetwash",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Untitled",
+"path": "micropetwash/untitled",
+"category": "Micropetwash",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microphantom/room_main",
+"category": "Microphantom",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "micropuppy/room_main",
+"category": "Micropuppy",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microsnake/room_main",
+"category": "Microsnake",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microstonemining/room_main",
+"category": "Microstonemining",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "microwoodgather/room_main",
+"category": "Microwoodgather",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "moatmadnessassets/room_main",
+"category": "Moatmadnessassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Equipment Shop",
+"path": "mountains_of_shivveer/equipment_shop",
+"category": "Mountains Of Shivveer",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "mountains_of_shivveer/room_main",
+"category": "Mountains Of Shivveer",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Friendship",
+"path": "mountains_of_shivveer/room_main_friendship",
+"category": "Mountains Of Shivveer",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Lucky",
+"path": "mountains_of_shivveer/room_main_lucky",
+"category": "Mountains Of Shivveer",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Bahari Bay",
+"path": "oceans/bahari_bay",
+"category": "Oceans",
+"joinable": true,
+"ocean": true
+},
+{
+"name": "Crystal Reef",
+"path": "oceans/crystal_reef",
+"category": "Oceans",
+"joinable": true,
+"ocean": true
+},
+{
+"name": "Deep Sea",
+"path": "oceans/deep_sea",
+"category": "Oceans",
+"joinable": true,
+"ocean": true
+},
+{
+"name": "Room Main",
+"path": "offthehookassets/room_main",
+"category": "Offthehookassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Game Main",
+"path": "pachinkoassets/game_main",
+"category": "Pachinkoassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pacmanassets/room_main",
+"category": "Pacmanassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "parachuteassets/room_main",
+"category": "Parachuteassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Venue Aprilfools",
+"path": "party/venue_aprilfools",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Boat",
+"path": "party/venue_boat",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Bouncy",
+"path": "party/venue_bouncy",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Bunny",
+"path": "party/venue_bunny",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Cake",
+"path": "party/venue_cake",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Chineseny",
+"path": "party/venue_chineseny",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Cloud",
+"path": "party/venue_cloud",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Concert",
+"path": "party/venue_concert",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Freedom",
+"path": "party/venue_freedom",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Friendship",
+"path": "party/venue_friendship",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Geoz",
+"path": "party/venue_geoz",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Ginger",
+"path": "party/venue_ginger",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Hauntedmansion",
+"path": "party/venue_hauntedmansion",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Heatwave",
+"path": "party/venue_heatwave",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Horse",
+"path": "party/venue_horse",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Leapyear",
+"path": "party/venue_leapyear",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Lucky",
+"path": "party/venue_lucky",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Masterp",
+"path": "party/venue_masterp",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Monkey",
+"path": "party/venue_monkey",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Newyear2",
+"path": "party/venue_newyear2",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Ocean",
+"path": "party/venue_ocean",
+"category": "Party",
+"joinable": true,
+"ocean": true
+},
+{
+"name": "Venue P Betaden",
+"path": "party/venue_p_betaden",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue P Diner",
+"path": "party/venue_p_diner",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Penguin",
+"path": "party/venue_penguin",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Petplay",
+"path": "party/venue_petplay",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pets",
+"path": "party/venue_pets",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Phantomtrading1",
+"path": "party/venue_phantomtrading1",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Phantomtrading2",
+"path": "party/venue_phantomtrading2",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Phantomtrading3",
+"path": "party/venue_phantomtrading3",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pl Barn Trading",
+"path": "party/venue_pl_barn_trading",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pl Birthday Cake",
+"path": "party/venue_pl_birthday_cake",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pl Castle Medieval",
+"path": "party/venue_pl_castle_medieval",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pl Dance Club",
+"path": "party/venue_pl_dance_club",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pl Res Bakery",
+"path": "party/venue_pl_res_bakery",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pl Vet Science",
+"path": "party/venue_pl_vet_science",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Plbakery",
+"path": "party/venue_plbakery",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Plbrntrd",
+"path": "party/venue_plbrntrd",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Plcake",
+"path": "party/venue_plcake",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Plcandy",
+"path": "party/venue_plcandy",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pldance",
+"path": "party/venue_pldance",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Pldancepink",
+"path": "party/venue_pldancepink",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Plmdvl",
+"path": "party/venue_plmdvl",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Plvet",
+"path": "party/venue_plvet",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Restaurant",
+"path": "party/venue_restaurant",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue School",
+"path": "party/venue_school",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Spooky",
+"path": "party/venue_spooky",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Spookyforest",
+"path": "party/venue_spookyforest",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Venue Wolf",
+"path": "party/venue_wolf",
+"category": "Party",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "phantomfighterassets/room_main",
+"category": "Phantomfighterassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "phantomstreasure/room_main",
+"category": "Phantomstreasure",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pillbugs/room_main",
+"category": "Pillbugs",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Main Room",
+"path": "pinball/main_room",
+"category": "Pinball",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pirate_ship/room_main",
+"category": "Pirate Ship",
+"joinable": true,
+"ocean": true
+},
+{
+"name": "Ship Shop",
+"path": "pirate_ship/ship_shop",
+"category": "Pirate Ship",
+"joinable": true,
+"ocean": true
+},
+{
+"name": "Playerden Free",
+"path": "player_den/playerden_free",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Castle Lrg",
+"path": "player_den/room_castle_lrg",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "player_den/room_main",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Atlantis",
+"path": "player_den/room_main_atlantis",
+"category": "Player Den",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Main Barn",
+"path": "player_den/room_main_barn",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Beachhouse",
+"path": "player_den/room_main_beachhouse",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Betaden",
+"path": "player_den/room_main_betaden",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Borealcottage",
+"path": "player_den/room_main_borealcottage",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Bouncy",
+"path": "player_den/room_main_bouncy",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Burrow",
+"path": "player_den/room_main_burrow",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Castle",
+"path": "player_den/room_main_castle",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Chalet",
+"path": "player_den/room_main_chalet",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Cosmo2",
+"path": "player_den/room_main_cosmo2",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Crystalpalace",
+"path": "player_den/room_main_crystalpalace",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Epicbetaden",
+"path": "player_den/room_main_epicbetaden",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Epicpalace",
+"path": "player_den/room_main_epicpalace",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Freedenfall",
+"path": "player_den/room_main_freedenfall",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Freedenspring",
+"path": "player_den/room_main_freedenspring",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Freedenwinter",
+"path": "player_den/room_main_freedenwinter",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Friendshipfortress",
+"path": "player_den/room_main_friendshipfortress",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Garden",
+"path": "player_den/room_main_garden",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Gardentreehouse",
+"path": "player_den/room_main_gardentreehouse",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Gilbert",
+"path": "player_den/room_main_gilbert",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Ginger",
+"path": "player_den/room_main_ginger",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Ginger2",
+"path": "player_den/room_main_ginger2",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Gingerbreadlodge",
+"path": "player_den/room_main_gingerbreadlodge",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Graham",
+"path": "player_den/room_main_graham",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Greely",
+"path": "player_den/room_main_greely",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Haunted",
+"path": "player_den/room_main_haunted",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Hauntedmanor",
+"path": "player_den/room_main_hauntedmanor",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Icysnowfort",
+"path": "player_den/room_main_icysnowfort",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Igloo",
+"path": "player_den/room_main_igloo",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Liza",
+"path": "player_den/room_main_liza",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Luckcastle",
+"path": "player_den/room_main_luckcastle",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Luckysmallhouse",
+"path": "player_den/room_main_luckysmallhouse",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Masterpiece",
+"path": "player_den/room_main_masterpiece",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Mushroom",
+"path": "player_den/room_main_mushroom",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Ocean1",
+"path": "player_den/room_main_ocean1",
+"category": "Player Den",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Main Ocean2",
+"path": "player_den/room_main_ocean2",
+"category": "Player Den",
+"joinable": false,
+"ocean": true
+},
+{
+"name": "Room Main Pdcosmo",
+"path": "player_den/room_main_pdcosmo",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Peckcave",
+"path": "player_den/room_main_peckcave",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Pixel",
+"path": "player_den/room_main_pixel",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Princesscastle",
+"path": "player_den/room_main_princesscastle",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Regalpalace",
+"path": "player_den/room_main_regalpalace",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Restaurant",
+"path": "player_den/room_main_restaurant",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Sandcastle",
+"path": "player_den/room_main_sandcastle",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Schoolhouse",
+"path": "player_den/room_main_schoolhouse",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Skykingdom",
+"path": "player_den/room_main_skykingdom",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Snowfort",
+"path": "player_den/room_main_snowfort",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Solarcade",
+"path": "player_den/room_main_solarcade",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Spookycastle",
+"path": "player_den/room_main_spookycastle",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Treehouse",
+"path": "player_den/room_main_treehouse",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Trendyrestaurant",
+"path": "player_den/room_main_trendyrestaurant",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Volcano",
+"path": "player_den/room_main_volcano",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Volhalloween",
+"path": "player_den/room_main_volhalloween",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Warmsandssanctuary",
+"path": "player_den/room_main_warmsandssanctuary",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Waterpark1b",
+"path": "player_den/room_main_waterpark1b",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Waterpark3",
+"path": "player_den/room_main_waterpark3",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Waterpark4",
+"path": "player_den/room_main_waterpark4",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Wcastle",
+"path": "player_den/room_main_wcastle",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Wintercastle",
+"path": "player_den/room_main_wintercastle",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main Wpalace",
+"path": "player_den/room_main_wpalace",
+"category": "Player Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "popcornassets/room_main",
+"category": "Popcornassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "prototypehorserace/room_main",
+"category": "Prototypehorserace",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pvp_bowling/room_main",
+"category": "Pvp Bowling",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pvp_connectfour/room_main",
+"category": "Pvp Connectfour",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pvp_marbles/room_main",
+"category": "Pvp Marbles",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pvp_memory/room_main",
+"category": "Pvp Memory",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pvp_pong/room_main",
+"category": "Pvp Pong",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pvp_rockpaperscissors/room_main",
+"category": "Pvp Rockpaperscissors",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Main Room",
+"path": "pvp_scooped/main_room",
+"category": "Pvp Scooped",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pvp_shellgame/room_main",
+"category": "Pvp Shellgame",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "pvp_tictactoe/room_main",
+"category": "Pvp Tictactoe",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "questparachuteassets/room_main",
+"category": "Questparachuteassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "recyclesort/room_main",
+"category": "Recyclesort",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Content Pd Burrow Pd Burrow",
+"path": "reuseplayer_den/content/pd_burrow/pd_burrow",
+"category": "Reuseplayer Den",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween1",
+"path": "rholidays_and_celebrations/room_jamaa_halloween1",
+"category": "Rholidays And Celebrations",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween2",
+"path": "rholidays_and_celebrations/room_jamaa_halloween2",
+"category": "Rholidays And Celebrations",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween3",
+"path": "rholidays_and_celebrations/room_jamaa_halloween3",
+"category": "Rholidays And Celebrations",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween4",
+"path": "rholidays_and_celebrations/room_jamaa_halloween4",
+"category": "Rholidays And Celebrations",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Jamaa Halloween5",
+"path": "rholidays_and_celebrations/room_jamaa_halloween5",
+"category": "Rholidays And Celebrations",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "riverraceassets/room_main",
+"category": "Riverraceassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main New",
+"path": "riverraceassets/room_main_new",
+"category": "Riverraceassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "safetyquizassets/room_main",
+"category": "Safetyquizassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Flag Shop",
+"path": "sarepia/flag_shop",
+"category": "Sarepia",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Movie Theater",
+"path": "sarepia/movie_theater",
+"category": "Sarepia",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "sarepia/room_main",
+"category": "Sarepia",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Freedom",
+"path": "sarepia/room_main_freedom",
+"category": "Sarepia",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Jamaalidays",
+"path": "sarepia/room_main_jamaalidays",
+"category": "Sarepia",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main Summer",
+"path": "sarepia/room_main_summer",
+"category": "Sarepia",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Theater Lobby",
+"path": "sarepia/theater_lobby",
+"category": "Sarepia",
+"joinable": true,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "shootinggalleryassets/room_main",
+"category": "Shootinggalleryassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "skeeballassets/room_main",
+"category": "Skeeballassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "smoothieassets/room_main",
+"category": "Smoothieassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "spidershooterassets/room_main",
+"category": "Spidershooterassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "spoton/room_main",
+"category": "Spoton",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Main Room",
+"path": "stackerassets/main_room",
+"category": "Stackerassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "supersort/room_main",
+"category": "Supersort",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Main Room",
+"path": "touchpoolassets/main_room",
+"category": "Touchpoolassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Untitled",
+"path": "touchpoolassets/untitled",
+"category": "Touchpoolassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Game Main",
+"path": "towerdefense/game_main",
+"category": "Towerdefense",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Game Main",
+"path": "triviaassets/game_main",
+"category": "Triviaassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Game Main",
+"path": "truefalseassets/game_main",
+"category": "Truefalseassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Game Main",
+"path": "twisterassets/game_main",
+"category": "Twisterassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "whackphantom/room_main",
+"category": "Whackphantom",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "windriderassets/room_main",
+"category": "Windriderassets",
+"joinable": false,
+"ocean": false
+},
+{
+"name": "Room Main",
+"path": "world_map/room_main",
+"category": "World Map",
+"joinable": false,
+"ocean": false
+}
+]

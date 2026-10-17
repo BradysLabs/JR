@@ -1,0 +1,9 @@
+{
+  "name": "Animal Buyer",
+  "description": "Animal Jam Classic animal browser and buyer using the Classic animal definition IDs.",
+  "category": "Explore",
+  "icon": "fa-paw",
+  "author": "Custom",
+  "main": "index.html",
+  "type": "ui"
+}

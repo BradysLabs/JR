@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Achievement Controller</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #12151c;
+      --panel: #191e28;
+      --panel-2: #202735;
+      --border: #30394a;
+      --text: #eef2fa;
+      --muted: #98a3b6;
+      --accent: #69d6ae;
+      --warning: #f5cf76;
+      --error: #ff9999;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      color: var(--text);
+      font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input { font: inherit; }
+    .header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .trophy { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: #303421; font-size: 20px; }
+    h1 { margin: 0; font-size: 17px; }
+    .subtitle { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .version { margin-left: auto; color: var(--muted); font-size: 10px; }
+    .status { padding: 8px 18px; color: var(--muted); font-size: 11px; border-bottom: 1px solid var(--border); }
+    .status.success { color: var(--accent); }
+    .status.warning { color: var(--warning); }
+    .status.error { color: var(--error); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; }
+    #search { flex: 1; min-width: 200px; height: 36px; padding: 0 11px; border: 1px solid var(--border); border-radius: 7px; outline: none; background: var(--panel); color: var(--text); }
+    #search:focus { border-color: var(--accent); }
+    .button { min-height: 34px; padding: 0 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 11px; font-weight: 650; }
+    .button:hover:not(:disabled) { border-color: var(--accent); }
+    .button.primary { background: var(--accent); color: #12151c; border-color: var(--accent); }
+    .button:disabled { opacity: 0.4; cursor: not-allowed; }
+    #count { padding: 0 16px 8px; color: var(--muted); font-size: 10px; }
+    .content { display: grid; grid-template-columns: minmax(320px, 1.1fr) minmax(280px, .9fr); gap: 12px; flex: 1; min-height: 0; padding: 0 16px 16px; }
+    .panel { min-width: 0; overflow: auto; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); }
+    #achievement-list { display: flex; flex-direction: column; }
+    .achievement-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(152,163,182,.1); padding: 8px 12px; }
+    .achievement-row.active { background: rgba(105,214,174,.1); }
+    .achievement-info { flex: 1; min-width: 0; cursor: pointer; }
+    .achievement-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 650; }
+    .achievement-desc { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+    .detail-desc { margin-top: 10px; line-height: 1.5; font-size: 12px; }
+    .achievement-meta { display: block; margin-top: 2px; color: var(--muted); font: 10px Consolas, "Courier New", monospace; }
+    .empty, .placeholder { padding: 22px; color: var(--muted); text-align: center; line-height: 1.55; }
+    #details { padding: 16px; }
+    #details h2 { margin: 0; font-size: 16px; }
+    .detail-id { margin-top: 5px; color: var(--muted); font: 11px Consolas, "Courier New", monospace; }
+    .packet-preview { margin: 14px 0; padding: 10px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--border); font-family: Consolas, "Courier New", monospace; font-size: 11px; word-break: break-all; }
+    dl { display: grid; grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); gap: 8px; margin: 14px 0 0; font-size: 11px; }
+    dt { color: var(--muted); }
+    dd { margin: 0; overflow-wrap: anywhere; font-family: Consolas, "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="trophy" aria-hidden="true">🏆</div>
+    <div>
+      <h1>Achievement Controller</h1>
+      <div class="subtitle">Select and transmit individual or bulk achievement packets</div>
+    </div>
+    <span id="version" class="version">v1.0.0</span>
+  </header>
+  <div id="status" class="status" role="status" aria-live="polite">Checking room status...</div>
+  
+  <div class="toolbar">
+    <input id="search" type="search" autocomplete="off" spellcheck="false" placeholder="Search by name, description or ID..." aria-label="Search achievements">
+    <button id="send-all" class="button primary" type="button">Send All (Batch)</button>
+    <button id="stop-batch" class="button" type="button" disabled>Stop Queue</button>
+  </div>
+  
+  <div id="count" aria-live="polite">Loading...</div>
+  
+  <main class="content">
+    <section id="achievement-list" class="panel" aria-label="Achievement definitions"></section>
+    <section id="details" class="panel" aria-label="Selected achievement details">
+      <div class="placeholder">Select an achievement from the list to view details and send individually.</div>
+    </section>
+  </main>
+
+  <script src="index.js"></script>
+  <script>
+
+    const achievements = [
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+      21, 22, 23, 24, 25, 26, 27, 31, 32, 36, 37, 38, 39, 40, 41, 44, 45, 46, 47, 48,
+      50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 65, 66, 67, 76, 77, 78,
+      79, 80, 81, 82, 83, 84, 85, 86, 87, 91, 92, 93, 94, 95, 96, 97, 113, 115, 130, 131,
+      132, 143, 144, 145, 159, 160, 212, 213, 277, 278, 279, 280, 281, 282, 283, 284, 285, 292, 293, 294
+    ]
+
+    let selectedId = null
+    let isBatchRunning = false
+    let cancelBatch = false
+    let lastActionAt = 0
+    let info = new Map()
+
+    function escapeHtml (value) {
+      return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+    }
+    function nameOf (id) {
+      const entry = info.get(id)
+      return (entry && entry.name) || `Achievement #${id}`
+    }
+    function descOf (id) {
+      const entry = info.get(id)
+      return (entry && entry.description) || ''
+    }
+
+    const init = async () => {
+      const listEl = document.getElementById('achievement-list')
+      const detailsEl = document.getElementById('details')
+      const searchEl = document.getElementById('search')
+      const statusEl = document.getElementById('status')
+      const countEl = document.getElementById('count')
+      const sendAllBtn = document.getElementById('send-all')
+      const stopBatchBtn = document.getElementById('stop-batch')
+
+      function updateStatus(message, type = '') {
+        lastActionAt = Date.now()
+        if (statusEl) {
+          statusEl.textContent = message
+          statusEl.className = `status ${type}`
+        }
+      }
+
+      window.sendSinglePacket = async function (id) {
+        updateStatus(`Sending packet for Achievement #${id}...`)
+        const result = await window.Achievements.send(id)
+        if (result.success) {
+          updateStatus(`Successfully dispatched Achievement #${id}`, 'success')
+        } else {
+          updateStatus(`Error sending #${id}: ${result.error}`, 'error')
+        }
+      }
+
+      function renderDetails(id) {
+        selectedId = id
+        renderList()
+
+        if (detailsEl) {
+          detailsEl.innerHTML = `
+            <h2>${escapeHtml(nameOf(id))}</h2>
+            <div class="detail-id">Achievement ID: ${id}</div>
+            <div class="detail-desc">${escapeHtml(descOf(id) || 'No description available.')}</div>
+            
+            <div style="margin-top: 16px;">
+              <button class="button primary" onclick="sendSinglePacket(${id})" style="width: 100%;">
+                Send Individual Packet
+              </button>
+            </div>
+
+            <div style="margin-top: 16px;">
+              <dt style="color: var(--muted); font-size: 11px;">Packet Command Format:</dt>
+              <div class="packet-preview">%xt%o%zs%[ROOM]%${id}%9999999%1%</div>
+            </div>
+
+            <dl>
+              <dt>Target ID</dt>
+              <dd>${id}</dd>
+              ${info.get(id) && info.get(id).amount ? `<dt>Needed to earn</dt><dd>${info.get(id).amount.toLocaleString()}</dd>` : ''}
+              <dt>Category</dt>
+              <dd>In-Game Achievement</dd>
+            </dl>
+          `
+        }
+      }
+
+      function renderList() {
+        if (!listEl) return
+        const query = searchEl ? searchEl.value.toLowerCase().trim() : ''
+        const filtered = achievements.filter(id => !query || String(id).includes(query) || nameOf(id).toLowerCase().includes(query) || descOf(id).toLowerCase().includes(query))
+        
+        if (countEl) {
+          countEl.textContent = `Showing ${filtered.length} of ${achievements.length} achievements`
+        }
+        
+        listEl.innerHTML = ''
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty">No achievements found matching search criteria.</div>'
+          return
+        }
+
+        filtered.forEach(id => {
+          const row = document.createElement('div')
+          row.className = `achievement-row ${selectedId === id ? 'active' : ''}`
+          
+          row.innerHTML = `
+            <div class="achievement-info">
+              <span class="achievement-name">${escapeHtml(nameOf(id))}</span>
+              ${descOf(id) ? `<span class="achievement-desc" title="${escapeHtml(descOf(id))}">${escapeHtml(descOf(id))}</span>` : ''}
+              <span class="achievement-meta">ID: ${id}</span>
+            </div>
+            <button class="button" onclick="sendSinglePacket(${id})">Send</button>
+          `
+
+          row.querySelector('.achievement-info')?.addEventListener('click', () => renderDetails(id))
+          listEl.appendChild(row)
+        })
+      }
+
+      sendAllBtn?.addEventListener('click', async () => {
+        if (isBatchRunning) return
+        
+        isBatchRunning = true
+        cancelBatch = false
+        sendAllBtn.disabled = true
+        if (stopBatchBtn) stopBatchBtn.disabled = false
+
+        for (let i = 0; i < achievements.length; i++) {
+          if (cancelBatch) {
+            updateStatus('Batch queue cancelled by user.', 'warning')
+            break
+          }
+
+          const id = achievements[i]
+          updateStatus(`Batch transmission (${i + 1}/${achievements.length}): Sending ID #${id}...`)
+          
+          const res = await window.Achievements.send(id)
+          if (!res.success) {
+            updateStatus(`Batch halted at ID #${id}: ${res.error}`, 'error')
+            cancelBatch = true
+            break
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 110))
+        }
+
+        if (!cancelBatch) {
+          updateStatus('Batch transmission complete!', 'success')
+        }
+
+        isBatchRunning = false
+        sendAllBtn.disabled = false
+        if (stopBatchBtn) stopBatchBtn.disabled = true
+      })
+
+      stopBatchBtn?.addEventListener('click', () => {
+        cancelBatch = true
+      })
+
+      searchEl?.addEventListener('input', renderList)
+
+      async function refreshStatus () {
+        if (isBatchRunning || Date.now() - lastActionAt < 4000) return
+      try {
+        const roomState = await window.Achievements.getRoomState()
+        if (!roomState?.connected) {
+          updateStatus('Client disconnected.', 'error')
+        } else if (!roomState?.room) {
+          updateStatus('You must enter a room to send packets.', 'warning')
+        } else {
+          updateStatus(`Connected to Room: ${roomState.room}`, 'success')
+        }
+      } catch (err) {
+        updateStatus('Ready')
+      }
+        lastActionAt = 0
+      }
+      renderList()
+      if (countEl) countEl.textContent += ' - loading names...'
+      window.Achievements.getInfo()
+        .then(result => {
+          info = result
+          renderList()
+          if (selectedId !== null) renderDetails(selectedId)
+        })
+        .catch(err => {
+          renderList()
+          if (countEl) countEl.textContent += ` - names unavailable (${err.message})`
+        })
+      await refreshStatus()
+      setInterval(refreshStatus, 3000)
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init)
+    else init()
+  </script>
+</body>
+</html>

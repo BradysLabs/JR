@@ -1,0 +1,9 @@
+{
+  "name": "Pet Catalog",
+  "description": "Browse pet definitions and submit purchases through a captured in-game request.",
+  "category": "Explore",
+  "icon": "fa-paw",
+  "author": "Custom",
+  "main": "index.html",
+  "type": "ui"
+}

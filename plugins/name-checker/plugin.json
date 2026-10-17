@@ -1,0 +1,9 @@
+{
+  "name": "Name Checker",
+  "description": "Finds which short usernames are still free to create, using the game's own sign-up check.",
+  "category": "Tools",
+  "icon": "fa-search",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

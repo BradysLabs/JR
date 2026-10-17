@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Name Checker</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    :root {
+      --bg: #16171f;
+      --panel: #1e1f2e;
+      --panel2: #252638;
+      --border: rgba(156, 163, 175, 0.15);
+      --text: #e2e8f0;
+      --muted: rgba(255, 255, 255, 0.45);
+      --accent: #34d399;
+      --warn: #fbbf24;
+      --bad: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; }
+    .wrap { padding: 14px; display: flex; flex-direction: column; gap: 12px; max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; }
+    h1 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    h1 .dot.live { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    h1 .dot.err { background: var(--bad); }
+    .label { color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+
+    /* search types */
+    .types { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+    .type { display: flex; gap: 9px; align-items: flex-start; text-align: left; padding: 9px 10px; border-radius: 7px;
+      border: 1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer; font: inherit; }
+    .type:hover:not(:disabled) { border-color: rgba(156,163,175,0.35); }
+    .type:disabled { opacity: .45; cursor: default; }
+    .type i { color: var(--muted); width: 16px; text-align: center; margin-top: 2px; }
+    .type b { display: block; font-size: 12px; }
+    .type span { display: block; color: var(--muted); font-size: 10.5px; margin-top: 2px; line-height: 1.3; }
+    .type.active { border-color: var(--accent); background: rgba(52, 211, 153, 0.08); }
+    .type.active i { color: var(--accent); }
+
+    .opts { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+    .opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    input[type=checkbox] { accent-color: var(--accent); }
+    select, input[type=number], input[type=text], textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+      padding: 5px 8px; color: #fff; font-size: 12px; font-family: inherit; }
+    input:disabled, select:disabled, textarea:disabled { opacity: .5; }
+    input[type=text] { width: 110px; }
+    input.wide { width: 100%; font-family: "SF Mono", Consolas, monospace; }
+    textarea { width: 100%; height: 90px; resize: vertical; font-family: "SF Mono", Consolas, monospace; }
+    input[type=number] { width: 70px; }
+    .hint { color: var(--muted); font-size: 10.5px; margin-top: 8px; line-height: 1.45; }
+    .hint code { background: var(--bg); padding: 1px 4px; border-radius: 3px; color: var(--text); }
+    .hidden { display: none !important; }
+    .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .themes label { background: var(--bg); border-radius: 5px; padding: 6px 8px; }
+    .themes small { color: var(--muted); margin-left: auto; }
+
+    .preview { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--muted); line-height: 1.5; }
+    .preview b { color: var(--text); }
+    .preview .samples { font-family: "SF Mono", Consolas, monospace; color: var(--text); }
+    .preview .warn { color: var(--warn); }
+
+    .btn { padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+      background: var(--panel); color: var(--text); cursor: pointer; transition: all .15s ease; }
+    .btn:hover:not(:disabled) { border-color: rgba(156,163,175,0.35); }
+    .btn:disabled { opacity: .45; cursor: default; }
+    .btn.primary { color: #0b0c10; background: var(--accent); border-color: var(--accent); min-width: 84px; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .grow { flex: 1; }
+
+    .bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+    .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+    .stat { background: var(--bg); border-radius: 6px; padding: 8px 4px; text-align: center; }
+    .stat b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+    .stat span { color: var(--muted); font-size: 10px; }
+    .stat.free b { color: var(--accent); }
+    #now { font-family: "SF Mono", Consolas, monospace; color: var(--muted); margin-top: 8px; font-size: 11px; }
+
+    #found { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto; min-height: 24px; }
+    .chip { background: rgba(52, 211, 153, 0.12); color: var(--accent); border: 1px solid rgba(52, 211, 153, 0.35);
+      border-radius: 4px; padding: 3px 7px; font-family: "SF Mono", Consolas, monospace; font-size: 12px; cursor: pointer; }
+    .chip:hover { background: rgba(52, 211, 153, 0.25); }
+    .empty { color: var(--muted); }
+
+    #log { background: var(--bg); border-radius: 6px; padding: 8px; height: 90px; overflow-y: auto;
+      font-family: "SF Mono", Consolas, monospace; font-size: 10.5px; color: var(--muted); white-space: pre-wrap; }
+    #log .e { color: var(--bad); }
+    #log .w { color: var(--warn); }
+    #log .ok { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1><span class="dot" id="dot"></span> Name Checker</h1>
+
+    <div>
+      <div class="label">What do you want to search for?</div>
+      <div class="types" id="types">
+        <button class="type" data-type="short"><i class="fas fa-font"></i><div><b>Short names</b><span>Every 3–6 character combo</span></div></button>
+        <button class="type" data-type="words"><i class="fas fa-book"></i><div><b>English words</b><span>One-word names from the dictionary</span></div></button>
+        <button class="type" data-type="themes"><i class="fas fa-paw"></i><div><b>Themed words</b><span>Animals, colors, nature and more</span></div></button>
+        <button class="type" data-type="names"><i class="fas fa-user"></i><div><b>First names</b><span>Popular first names</span></div></button>
+        <button class="type" data-type="pattern"><i class="fas fa-puzzle-piece"></i><div><b>Pattern</b><span>Like <code>cat##</code> or <code>?a?</code></span></div></button>
+        <button class="type" data-type="repeats"><i class="fas fa-redo"></i><div><b>Repeats</b><span>aaa, 7777, abab…</span></div></button>
+        <button class="type" data-type="list"><i class="fas fa-list"></i><div><b>My list</b><span>Names you paste in</span></div></button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <!-- Short names -->
+      <div data-opts="short">
+        <div class="opts">
+          <label>Length <input type="number" id="shortMin" min="3" max="6" value="3"> to <input type="number" id="shortMax" min="3" max="6" value="3"></label>
+          <label><input type="checkbox" id="shortLetters" checked> Letters a–z</label>
+          <label><input type="checkbox" id="shortNumbers" checked> Numbers 0–9</label>
+        </div>
+      </div>
+
+      <!-- English words -->
+      <div data-opts="words" class="hidden">
+        <div class="opts">
+          <label>Length <input type="number" id="wordsMin" min="3" max="20" value="3"> to <input type="number" id="wordsMax" min="3" max="20" value="5"></label>
+          <label>Starts with <input type="text" id="wordsStart" spellcheck="false"></label>
+          <label>Contains <input type="text" id="wordsHas" spellcheck="false"></label>
+          <label>Ends with <input type="text" id="wordsEnd" spellcheck="false"></label>
+        </div>
+        <div class="hint">Shortest words are checked first. The list has about 62,000 dictionary words.</div>
+      </div>
+
+      <!-- Themed words -->
+      <div data-opts="themes" class="hidden">
+        <div class="themes" id="themeList"></div>
+        <div class="opts" style="margin-top: 10px">
+          <label><input type="checkbox" id="themesDigit"> Also try with a number 0–9 at the end</label>
+        </div>
+      </div>
+
+      <!-- First names -->
+      <div data-opts="names" class="hidden">
+        <div class="opts">
+          <label>Length <input type="number" id="namesMin" min="3" max="20" value="3"> to <input type="number" id="namesMax" min="3" max="20" value="6"></label>
+          <label><input type="checkbox" id="namesDigit"> Also try with a number 0–9 at the end</label>
+        </div>
+      </div>
+
+      <!-- Pattern -->
+      <div data-opts="pattern" class="hidden">
+        <input type="text" class="wide" id="pattern" value="cat##" spellcheck="false" placeholder="cat##, ?a?, *x*">
+        <div class="hint">
+          <code>?</code> any letter &nbsp; <code>#</code> any number &nbsp; <code>*</code> letter or number &nbsp; anything else stays as typed.
+          Separate several patterns with commas. Example: <code>fox#</code> checks fox0 to fox9.
+        </div>
+      </div>
+
+      <!-- Repeats -->
+      <div data-opts="repeats" class="hidden">
+        <div class="opts">
+          <label>Length <input type="number" id="repMin" min="3" max="20" value="3"> to <input type="number" id="repMax" min="3" max="20" value="6"></label>
+          <label><input type="checkbox" id="repSame" checked> Same character (aaa, 7777)</label>
+          <label><input type="checkbox" id="repPair" checked> Two-character repeats (abab, a1a1)</label>
+        </div>
+      </div>
+
+      <!-- My list -->
+      <div data-opts="list" class="hidden">
+        <textarea id="list" spellcheck="false" placeholder="abc&#10;x7z&#10;q4q"></textarea>
+        <div class="hint">One per line (commas and spaces work too).</div>
+      </div>
+
+      <div class="preview" id="preview"></div>
+    </div>
+
+    <div class="row">
+      <label class="row" style="color: var(--muted)">Wait between checks
+        <input type="number" id="delay" min="500" step="250" value="1200"> ms</label>
+      <span class="grow"></span>
+      <button class="btn" id="reset">Reset</button>
+      <button class="btn primary" id="start">Start</button>
+    </div>
+
+    <div class="panel">
+      <div class="bar"><div id="fill"></div></div>
+      <div class="stats">
+        <div class="stat"><b id="sChecked">0</b><span>checked</span></div>
+        <div class="stat free"><b id="sFree">0</b><span>available</span></div>
+        <div class="stat"><b id="sTaken">0</b><span>taken</span></div>
+        <div class="stat"><b id="sLeft">0</b><span>left</span></div>
+        <div class="stat"><b id="sEta">–</b><span>time left</span></div>
+      </div>
+      <div id="now">Not running</div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="margin-bottom: 8px">
+        <div class="label grow" style="margin: 0">Available in this search</div>
+        <button class="btn" id="copy">Copy all</button>
+        <button class="btn" id="folder">Open folder</button>
+      </div>
+      <div id="found"><span class="empty">None yet.</span></div>
+      <div class="hint">Click a name to copy it. Every name found is also saved to available.txt in this plugin's folder.</div>
+    </div>
+
+    <div id="log"></div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room Browser</title>
+  <style>
+    :root {
+      --bg: #16171f;
+      --panel: #1e1f2e;
+      --border: rgba(156, 163, 175, 0.15);
+      --text: #e2e8f0;
+      --muted: rgba(255, 255, 255, 0.45);
+      --accent: #34d399;
+      --err: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body { display: flex; flex-direction: column; padding: 14px; gap: 10px; overflow: hidden; }
+    h1 { font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px; }
+    h1 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    input {
+      width: 100%; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 4px; padding: 7px 10px; color: #fff; font-size: 12px;
+    }
+    input:focus { outline: none; border-color: var(--accent); }
+    #list {
+      flex: 1; min-height: 0; overflow-y: auto;
+      border: 1px solid var(--border); border-radius: 4px; background: var(--panel);
+    }
+    .room {
+      padding: 6px 10px; font-size: 12px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      border-bottom: 1px solid rgba(156,163,175,0.06);
+    }
+    .room:hover { background: rgba(255,255,255,0.05); }
+    .room.selected { background: rgba(52, 211, 153, 0.15); color: #fff; }
+    .room .path { color: var(--muted); font-size: 10px; }
+    .room.muted { opacity: .5; }
+    .cat { padding: 6px 10px 2px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: .5px; }
+    .tags { display: flex; gap: 4px; flex-shrink: 0; }
+    .tag { font-size: 9px; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+    .tag-ocean { background: rgba(59,130,246,0.2); color: #60a5fa; }
+    .tag-asset { background: rgba(156,163,175,0.2); color: #9ca3af; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; }
+    .toolbar label { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    #count { font-size: 10px; color: var(--muted); }
+    button {
+      width: 100%; padding: 9px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;
+      border: none; cursor: pointer; background: rgba(52,211,153,0.2); color: var(--accent);
+      transition: background .15s ease;
+    }
+    button:hover:not(:disabled) { background: rgba(52,211,153,0.32); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #status { font-size: 12px; min-height: 16px; }
+    #status.ok { color: var(--accent); }
+    #status.err { color: var(--err); }
+  </style>
+</head>
+<body>
+  <h1><span class="dot"></span> Room Browser</h1>
+
+  <div>
+    <div class="label">Search</div>
+    <input type="text" id="search" placeholder="Filter by name or path...">
+  </div>
+
+  <div class="toolbar">
+    <div id="count"></div>
+    <label><input type="checkbox" id="showAll"> Show non-joinable</label>
+  </div>
+  <div id="list"></div>
+
+  <button id="join" disabled>Join Room</button>
+  <div id="status"></div>
+
+  <script src="index.js"></script>
+</body>
+</html>

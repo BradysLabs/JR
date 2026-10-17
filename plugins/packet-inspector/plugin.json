@@ -1,0 +1,9 @@
+{
+  "name": "Packet Inspector",
+  "description": "Live, searchable packet viewer with plain-English explanations.",
+  "category": "Tools",
+  "icon": "fa-search",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

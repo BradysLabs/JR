@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Animal Buyer</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #10131a;
+      --panel: #171b24;
+      --panel-2: #1d2330;
+      --border: #2b3342;
+      --text: #f4f6fb;
+      --muted: #8993a6;
+      --accent: #6c7cff;
+      --accent-2: #8a62ff;
+      --success: #37d79a;
+      --danger: #ff6673;
+      --warning: #f4c95d;
+      --radius: 12px;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: 22px;
+
+      background:
+        radial-gradient(
+          circle at top left,
+          rgba(108, 124, 255, 0.12),
+          transparent 35%
+        ),
+        var(--bg);
+
+      color: var(--text);
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+
+      margin-bottom: 18px;
+    }
+
+    .icon {
+      width: 48px;
+      height: 48px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border-radius: 14px;
+
+      background:
+        linear-gradient(
+          135deg,
+          var(--accent),
+          var(--accent-2)
+        );
+
+      font-size: 24px;
+
+      box-shadow:
+        0 10px 28px rgba(108, 124, 255, 0.25);
+    }
+
+    h1 {
+      margin: 0;
+
+      font-size: 24px;
+      font-weight: 750;
+      letter-spacing: -0.4px;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+
+      color: var(--muted);
+
+      font-size: 12px;
+    }
+
+    /* Cards */
+
+    .card {
+      margin-bottom: 13px;
+      padding: 17px;
+
+      background: rgba(23, 27, 36, 0.96);
+
+      border:
+        1px solid var(--border);
+
+      border-radius: var(--radius);
+
+      box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.16);
+    }
+
+    .section-title {
+      margin: 0 0 13px;
+
+      color: var(--muted);
+
+      font-size: 11px;
+      font-weight: 750;
+
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* Search */
+
+    .search-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    #search {
+      flex: 1;
+
+      width: 100%;
+      height: 46px;
+
+      padding:
+        0 13px;
+
+      background: var(--panel-2);
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 9px;
+
+      outline: none;
+
+      color: var(--text);
+    }
+
+    #search::placeholder {
+      color: #657085;
+    }
+
+    #search:focus {
+      border-color: var(--accent);
+
+      box-shadow:
+        0 0 0 3px rgba(108, 124, 255, 0.10);
+    }
+
+    .secondary-button {
+      height: 46px;
+
+      padding: 0 14px;
+
+      background: #252c39;
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 9px;
+
+      color: var(--text);
+
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .secondary-button:hover {
+      background: #2a3342;
+    }
+
+    /* Results */
+
+    #resultCount {
+      margin-top: 10px;
+
+      color: var(--muted);
+
+      font-size: 11px;
+    }
+
+    #results {
+      display: flex;
+      flex-direction: column;
+
+      gap: 6px;
+
+      max-height: 270px;
+
+      overflow-y: auto;
+
+      margin-top: 10px;
+    }
+
+    .animal-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      padding: 10px 12px;
+
+      background: rgba(29, 35, 48, 0.70);
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 8px;
+
+      transition:
+        border-color 0.12s ease,
+        background 0.12s ease;
+    }
+
+    .animal-row:hover {
+      background: #222a38;
+    }
+
+    .animal-row.selected {
+      border-color: var(--accent);
+
+      background:
+        rgba(108, 124, 255, 0.13);
+    }
+
+    .animal-main {
+      min-width: 0;
+    }
+
+    .animal-name {
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .animal-meta {
+      margin-top: 3px;
+
+      color: var(--muted);
+
+      font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+
+      font-size: 10px;
+    }
+
+    .animal-actions {
+      display: flex;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .small-button {
+      height: 32px;
+
+      padding: 0 9px;
+
+      background: #252c39;
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 7px;
+
+      color: var(--text);
+
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .small-button:hover {
+      background: #2c3545;
+    }
+
+    .small-button.favorite.active {
+      color: #ffd866;
+    }
+
+    /* Selected animal */
+
+    .selected-grid {
+      display: grid;
+
+      grid-template-columns:
+        repeat(4, 1fr);
+
+      gap: 8px;
+
+      margin-bottom: 13px;
+    }
+
+    .stat {
+      padding: 10px;
+
+      background: var(--bg);
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 8px;
+    }
+
+    .stat-value {
+      font-size: 17px;
+      font-weight: 750;
+
+      font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+    }
+
+    .stat-label {
+      margin-top: 3px;
+
+      color: var(--muted);
+
+      font-size: 9px;
+
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .selected-name {
+      margin-bottom: 12px;
+
+      font-size: 20px;
+      font-weight: 750;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+
+      gap: 6px;
+
+      margin-bottom: 13px;
+    }
+
+    .badge {
+      padding: 4px 7px;
+
+      border-radius: 5px;
+
+      background: #252c39;
+
+      color: #bec7d7;
+
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .badge.member {
+      background:
+        rgba(244, 201, 93, 0.12);
+
+      color: var(--warning);
+    }
+
+    .badge.free {
+      background:
+        rgba(55, 215, 154, 0.10);
+
+      color: var(--success);
+    }
+
+    /* Packet */
+
+    .packet-label {
+      margin-bottom: 7px;
+
+      color: var(--muted);
+
+      font-size: 10px;
+
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .packet {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      padding: 11px;
+
+      min-height: 45px;
+      resize: vertical;
+
+      background: #0b0e14;
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 8px;
+
+      color: #aeb8cb;
+
+      font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+
+      font-size: 10px;
+
+      line-height: 1.5;
+
+      word-break: break-all;
+    }
+
+    /* Purchase */
+
+    #purchase {
+      width: 100%;
+      height: 48px;
+
+      border: 0;
+
+      border-radius: 9px;
+
+      background:
+        linear-gradient(
+          135deg,
+          var(--accent),
+          var(--accent-2)
+        );
+
+      color: white;
+
+      font-size: 13px;
+      font-weight: 750;
+
+      box-shadow:
+        0 8px 22px rgba(108, 124, 255, 0.20);
+    }
+
+    #purchase:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+
+    #purchase:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    #purchase:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    #status {
+      min-height: 18px;
+
+      margin-top: 10px;
+
+      color: var(--muted);
+
+      font-size: 11px;
+    }
+
+    #status.success {
+      color: var(--success);
+    }
+
+    #status.error {
+      color: var(--danger);
+    }
+
+    #status.warning {
+      color: var(--warning);
+    }
+
+    /* History */
+
+    #history {
+      display: flex;
+      flex-direction: column;
+
+      gap: 6px;
+    }
+
+    .history-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      padding: 9px 11px;
+
+      background:
+        rgba(29, 35, 48, 0.65);
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 8px;
+    }
+
+    .history-name {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .history-id {
+      margin-left: 5px;
+
+      color: var(--muted);
+
+      font-family:
+        Consolas,
+        monospace;
+
+      font-size: 10px;
+    }
+
+    .empty {
+      padding: 14px;
+
+      color: var(--muted);
+
+      font-size: 11px;
+
+      text-align: center;
+    }
+
+    /* Mobile */
+
+    @media (max-width: 620px) {
+      body {
+        padding: 13px;
+      }
+
+      .selected-grid {
+        grid-template-columns:
+          repeat(2, 1fr);
+      }
+
+      .search-row {
+        flex-direction: column;
+      }
+
+      #search,
+      .secondary-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <header class="header">
+
+      <div class="icon">
+        🐾
+      </div>
+
+      <div>
+        <h1>Animal Buyer</h1>
+
+        <p class="subtitle">
+          Animal Jam Classic · 53 animal definitions
+        </p>
+      </div>
+
+    </header>
+
+
+    <!-- Search -->
+
+    <section class="card">
+
+      <h2 class="section-title">
+        Find an Animal
+      </h2>
+
+      <div class="search-row">
+
+        <input
+          id="search"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Search by animal name or ID..."
+        >
+
+        <button
+          id="clearSearch"
+          class="secondary-button"
+          type="button"
+        >
+          Clear
+        </button>
+
+      </div>
+
+      <div id="resultCount">
+        53 animals
+      </div>
+
+      <div id="results"></div>
+
+    </section>
+
+
+    <!-- Selected animal -->
+
+    <section class="card">
+
+      <h2 class="section-title">
+        Selected Animal
+      </h2>
+
+      <div
+        id="selectedName"
+        class="selected-name"
+      >
+        Select an animal
+      </div>
+
+      <div
+        id="badges"
+        class="badges"
+      ></div>
+
+      <div class="selected-grid">
+
+        <div class="stat">
+          <div
+            id="selectedId"
+            class="stat-value"
+          >
+            —
+          </div>
+
+          <div class="stat-label">
+            Animal ID
+          </div>
+        </div>
+
+        <div class="stat">
+          <div
+            id="selectedCost"
+            class="stat-value"
+          >
+            —
+          </div>
+
+          <div class="stat-label">
+            Cost
+          </div>
+        </div>
+
+        <div class="stat">
+          <div
+            id="selectedMembers"
+            class="stat-value"
+          >
+            —
+          </div>
+
+          <div class="stat-label">
+            Members
+          </div>
+        </div>
+
+        <div class="stat">
+          <div
+            id="selectedRef"
+            class="stat-value"
+          >
+            —
+          </div>
+
+          <div class="stat-label">
+            String Ref
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- Packet -->
+
+    <section class="card">
+
+      <h2 class="section-title">
+        Packet
+      </h2>
+
+      <div class="packet-label">
+        Editable purchase request
+      </div>
+
+      <textarea
+        id="packet"
+        class="packet"
+        rows="3"
+        spellcheck="false"
+        aria-label="Editable animal purchase packet"
+      >
+      </textarea>
+
+      <div id="packetHelp" class="hint">
+        Make a normal animal purchase in the game first so Animal Buyer can capture the current request fields.
+      </div>
+
+    </section>
+
+
+    <!-- Purchase -->
+
+    <section class="card">
+
+      <button
+        id="purchase"
+        type="button"
+        disabled
+      >
+        Purchase Selected Animal
+      </button>
+
+      <div id="status">
+        Ready.
+      </div>
+
+    </section>
+
+
+    <!-- Recent -->
+
+    <section class="card">
+
+      <h2 class="section-title">
+        Recent Animals
+      </h2>
+
+      <div id="history">
+
+        <div class="empty">
+          No recent animals.
+        </div>
+
+      </div>
+
+    </section>
+
+  </div>
+
+
+  <script src="index.js"></script>
+
+</body>
+</html>

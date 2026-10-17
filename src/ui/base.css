@@ -1,0 +1,65 @@
+/* JR base styles (BradysLabs). Monochrome "A2 Command" look. */
+:root {
+  --bg: #0b0b0c;
+  --panel: #0f0f11;
+  --panel-2: #121214;
+  --raise: #161618;
+  --line: #1f1f22;
+  --line-2: #2a2a2e;
+  --line-3: #3a3a40;
+  --text: #ededee;
+  --text-2: #d4d4d8;
+  --dim: #a6a6ac;
+  --dim-2: #8a8a90;
+  --faint: #6c6c72;
+  --faint-2: #5a5a60;
+  --bad: #f87171;
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "Cascadia Mono", "JetBrains Mono", Consolas, ui-monospace, monospace;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text); font: 14px/1.45 var(--font);
+  overflow: hidden; -webkit-font-smoothing: antialiased; user-select: none;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+input, textarea, select { font: inherit; color: var(--text); user-select: text; }
+.mono { font-family: var(--mono); }
+.hidden { display: none !important; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #26262a; border-radius: 10px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Title bar */
+.titlebar { height: 40px; display: flex; align-items: center; -webkit-app-region: drag; flex-shrink: 0; font-size: 11px; color: var(--dim-2); }
+.titlebar .grow { flex: 1; }
+.titlebar button, .titlebar a, .titlebar input { -webkit-app-region: no-drag; }
+.winbtn { width: 44px; height: 40px; background: transparent; border: 0; color: var(--dim-2); display: flex; align-items: center; justify-content: center; }
+.winbtn:hover { background: #1a1a1d; color: #fff; }
+.winbtn.close:hover { background: #c4314b; color: #fff; }
+.logo { border-radius: 8px; background: var(--text); color: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: 700; letter-spacing: -.5px; }
+
+/* Buttons */
+.btn { height: 42px; padding: 0 18px; border-radius: 11px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: border-color .15s, background .15s, color .15s; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: #4a4a50; color: #fff; }
+.btn.primary { background: #f4f4f5; color: var(--bg); border: 0; font-weight: 700; }
+.btn.primary:hover:not(:disabled) { background: #fff; color: var(--bg); }
+.btn.small { height: 32px; padding: 0 12px; border-radius: 9px; font-size: 12.5px; }
+.btn.big { height: 50px; padding: 0 26px; font-size: 15px; border-radius: 12px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.link { background: none; border: 0; padding: 0; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+.link:hover { color: #fff; }
+
+.field { height: 42px; width: 100%; padding: 0 14px; border-radius: 11px; border: 1px solid var(--line-2); background: var(--panel-2); outline: none; }
+.field:focus { border-color: #5a5a60; }
+
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #2f2f34; border-top-color: var(--text); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .3s var(--ease) both; }
+
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #1a1a1d; border: 1px solid var(--line-2); color: var(--text-2); padding: 10px 16px; border-radius: 11px; font-size: 13px; box-shadow: 0 12px 40px rgba(0,0,0,.5); z-index: 100; max-width: 80%; }
+.toast.error { border-color: #5b2a2f; color: #fecaca; }

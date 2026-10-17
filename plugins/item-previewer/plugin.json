@@ -1,0 +1,10 @@
+{
+  "name": "Item Previewer",
+  "description": "Try on any clothing item. Only you can see it - nothing is sent to the server.",
+  "category": "Customize",
+  "icon": "fa-tshirt",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui",
+  "game": "animal-jam-classic"
+}

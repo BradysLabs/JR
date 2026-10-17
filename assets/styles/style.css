@@ -1,0 +1,25 @@
+/*
+ * JR plugin window stylesheet (BradysLabs).
+ * JR adds this to every plugin window. Plugins can override anything.
+ */
+:root {
+  --jr-bg: #0b0b0c;
+  --jr-panel: #111113;
+  --jr-line: #1f1f22;
+  --jr-line-2: #2f2f34;
+  --jr-text: #ededee;
+  --jr-dim: #a6a6ac;
+  --jr-faint: #6c6c72;
+  --jr-font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --jr-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  color-scheme: dark;
+}
+html { background: var(--jr-bg); }
+body { margin: 0; background: var(--jr-bg); color: var(--jr-text); font-family: var(--jr-font); font-size: 13px; }
+code, pre, kbd, samp { font-family: var(--jr-mono); }
+a { color: var(--jr-text); }
+::selection { background: #3a3a40; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #26262a; border-radius: 10px; border: 2px solid var(--jr-bg); }
+::-webkit-scrollbar-track { background: transparent; }
+input, select, textarea, button { font-family: inherit; }

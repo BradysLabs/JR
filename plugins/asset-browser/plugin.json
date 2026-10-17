@@ -1,0 +1,9 @@
+{
+  "name": "Asset Browser",
+  "description": "Browse clothing and den items, inspect known defpacks, and discover more by scanning ID ranges.",
+  "category": "Explore",
+  "icon": "fa-box-open",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

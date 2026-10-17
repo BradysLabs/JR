@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Item Previewer</title>
+  <style>
+    :root {
+      --bg: #16171f;
+      --panel: #1e1f2e;
+      --panel-2: #262838;
+      --border: rgba(156, 163, 175, 0.15);
+      --text: #e2e8f0;
+      --muted: rgba(255, 255, 255, 0.5);
+      --accent: #34d399;
+      --warn: #fbbf24;
+      --error: #f87171;
+      --member: #c084fc;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; }
+    body { display: flex; flex-direction: column; }
+    button, input { font: inherit; color: inherit; }
+
+    header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    header h1 { margin: 0; font-size: 14px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+    .dot.live { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    .dot.warn { background: var(--warn); }
+    #status { margin-left: auto; color: var(--muted); font-size: 11px; text-align: right; }
+    #status.ok { color: var(--accent); }
+    #status.warn { color: var(--warn); }
+    #status.error { color: var(--error); }
+
+    main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(240px, .8fr); gap: 12px; padding: 12px 14px 14px; }
+    .col { min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+    .label { color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+
+    #search { width: 100%; height: 34px; padding: 0 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; outline: none; }
+    #search:focus { border-color: var(--accent); }
+    #count { color: var(--muted); font-size: 10px; }
+
+    .list { flex: 1; min-height: 0; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+    .row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.04); cursor: pointer; }
+    .row:hover { background: rgba(255,255,255,.04); }
+    .row.selected { background: rgba(52, 211, 153, .12); }
+    .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+    .row .id { color: var(--muted); font-family: Consolas, "SF Mono", monospace; font-size: 10px; }
+    .tag { font-size: 9px; padding: 1px 5px; border-radius: 4px; background: rgba(192,132,252,.15); color: var(--member); }
+    .empty { padding: 22px; color: var(--muted); text-align: center; line-height: 1.6; }
+
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    #selName { font-size: 14px; font-weight: 700; }
+    #selMeta { color: var(--muted); font-family: Consolas, "SF Mono", monospace; font-size: 10px; }
+    .field { display: flex; align-items: center; gap: 8px; }
+    .field label { color: var(--muted); width: 108px; }
+    .field input { width: 90px; height: 28px; padding: 0 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; outline: none; font-family: Consolas, monospace; }
+    .field input:focus { border-color: var(--accent); }
+    .hint { color: var(--muted); font-size: 10px; line-height: 1.5; }
+
+    .btn { height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-2); cursor: pointer; font-weight: 650; }
+    .btn:hover:not(:disabled) { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #0f1a14; }
+    .btn:disabled { opacity: .4; cursor: default; }
+    .btn.small { height: 24px; padding: 0 8px; font-size: 10px; }
+
+    #active { display: flex; flex-direction: column; gap: 4px; max-height: 210px; overflow-y: auto; }
+    .active-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg); border-radius: 6px; }
+    .active-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .active-row .state { font-size: 9px; color: var(--muted); }
+    .active-row .state.on { color: var(--accent); }
+    #swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+    .swatch { width: 30px; height: 30px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; padding: 0;
+      display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; }
+    .swatch:hover { border-color: rgba(255,255,255,.5); }
+    .swatch.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(52,211,153,.3); }
+    .swatch.index { background: var(--panel-2); text-shadow: none; }
+    #colorNote:empty { display: none; }
+    .toggle { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <span id="dot" class="dot"></span>
+    <h1>Item Previewer</h1>
+    <span id="status">Starting...</span>
+  </header>
+
+  <main>
+    <section class="col">
+      <input id="search" type="search" placeholder="Search clothing by name or ID..." autocomplete="off" spellcheck="false" aria-label="Search clothing">
+      <div id="count">Loading item names...</div>
+      <div id="list" class="list" role="listbox" aria-label="Clothing items"></div>
+    </section>
+
+    <section class="col">
+      <div class="card">
+        <div class="label">Selected</div>
+        <div>
+          <div id="selName">Pick an item</div>
+          <div id="selMeta"></div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom: 6px;">Color</div>
+          <div id="swatches"></div>
+          <div id="colorNote" class="hint" style="margin-top: 6px;"></div>
+        </div>
+        <div class="field">
+          <label for="color" title="Color option (0 = first color)">Option</label>
+          <input id="color" type="number" min="0" value="0" aria-label="Item color number">
+        </div>
+        <div class="field">
+          <label for="inventoryNumber" title="Your account-specific position in the inventory">Inventory #</label>
+          <input id="inventoryNumber" type="number" min="1" max="1000" step="1" placeholder="1–1000" aria-label="Your inventory item number">
+        </div>
+        <div class="hint">Choose this item's number in your own inventory. This labels the preview; the plugin still uses a separate temporary slot.</div>
+        <button id="preview" class="btn primary" type="button" disabled>Try it on</button>
+        <div class="hint">The item is added to your inventory and put on your animal on your screen only. Nobody else sees it and the server never hears about it.</div>
+      </div>
+
+      <div class="card" style="flex: 1; min-height: 0;">
+        <div class="label">Previewing</div>
+        <div id="active"><div class="empty">Nothing yet.</div></div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button id="removeAll" class="btn" type="button" disabled>Take all off</button>
+          <label class="toggle"><input id="keep" type="checkbox" checked> Keep on when changing rooms</label>
+        </div>
+        <div class="hint">Keep this window open while previewing. Closing it takes the preview items off. They stay in your inventory list until you log in again, but can't be used.</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="index.js"></script>
+</body>
+</html>

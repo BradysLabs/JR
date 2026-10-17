@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Glow Picker</title>
+  <style>
+    :root {
+      --bg: #16171f;
+      --panel: #1e1f2e;
+      --border: rgba(156, 163, 175, 0.15);
+      --text: #e2e8f0;
+      --muted: rgba(255, 255, 255, 0.45);
+      --accent: #34d399;
+      --warn: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; }
+    .wrap { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+    h1 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; }
+    h1 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    h1 .dot.live { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    .label { color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+
+    .preview { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; }
+    #swatch { width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; transition: box-shadow .15s ease, background .15s ease; }
+    #swatch.random { background: conic-gradient(#ff1a1a, #ffe600, #1aff4a, #00e5ff, #2d5bff, #ff2fc8, #ff1a1a) !important; }
+    .preview .info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    #hex { width: 110px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+      padding: 5px 8px; color: #fff; font-family: "SF Mono", Consolas, monospace; font-size: 12px; }
+    #hex:focus { outline: none; border-color: var(--accent); }
+    #hex.bad { border-color: #ef4444; }
+    #value, #status { color: var(--muted); font-family: "SF Mono", Consolas, monospace; font-size: 11px; }
+    #status.ok { color: var(--accent); }
+    #status.warn { color: var(--warn); }
+
+    .presets { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .preset { aspect-ratio: 1; border-radius: 6px; border: 2px solid transparent; cursor: pointer; position: relative; }
+    .preset:hover { border-color: rgba(255,255,255,0.4); }
+    .preset.cycle::after { content: ""; position: absolute; right: 2px; bottom: 2px; width: 6px; height: 6px;
+      border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+    .hint { color: var(--muted); font-size: 10px; margin-top: 4px; }
+
+    .swaps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .swap { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 11px; font-weight: 600;
+      text-align: left; transition: all .15s ease; }
+    .swap:hover { border-color: rgba(156,163,175,0.35); }
+    .swap .chip { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15); }
+    .swap.active { border-color: var(--accent); background: rgba(52, 211, 153, 0.1); }
+    .swap.active .chip { animation: spin 1.2s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .slider { display: grid; grid-template-columns: 62px 1fr 34px; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .slider span { color: var(--muted); }
+    .slider output { text-align: right; font-family: "SF Mono", Consolas, monospace; }
+    input[type=range] { width: 100%; accent-color: var(--accent); }
+
+    .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .btn { padding: 8px 6px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+      background: var(--panel); color: var(--text); cursor: pointer; transition: all .15s ease; }
+    .btn:hover { border-color: rgba(156,163,175,0.35); }
+    .btn.active { color: #0b0c10; background: var(--accent); border-color: var(--accent); }
+    .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+    .speed { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+    #speed { width: 70px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+      padding: 6px 8px; color: #fff; font-size: 12px; }
+    #stop { flex: 0 0 auto; padding: 8px 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1><span class="dot" id="live"></span> Glow Picker</h1>
+
+    <div class="preview">
+      <div id="swatch"></div>
+      <div class="info">
+        <input id="hex" type="text" maxlength="7" spellcheck="false">
+        <div id="value"></div>
+        <div id="status">Off</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="label">Presets</div>
+      <div class="presets" id="presets"></div>
+      <div class="hint">Click to pick. Right-click to add or remove from Cycle.</div>
+    </div>
+
+    <div>
+      <div class="label">Swaps</div>
+      <div class="swaps" id="swaps"></div>
+      <div class="hint">Click a swap to start it, click again to stop. Uses the speed below.</div>
+    </div>
+
+    <div>
+      <div class="label">Color</div>
+      <div class="slider"><span>Red</span><input type="range" id="r" min="0" max="255"><output id="rOut"></output></div>
+      <div class="slider"><span>Green</span><input type="range" id="g" min="0" max="255"><output id="gOut"></output></div>
+      <div class="slider"><span>Blue</span><input type="range" id="b" min="0" max="255"><output id="bOut"></output></div>
+      <div class="slider"><span>Strength</span><input type="range" id="a" min="0" max="255"><output id="aOut"></output></div>
+    </div>
+
+    <div>
+      <div class="label">Mode</div>
+      <div class="modes">
+        <button class="btn" data-mode="once">Once</button>
+        <button class="btn" data-mode="hold">Hold</button>
+        <button class="btn" data-mode="cycle">Cycle</button>
+        <button class="btn" data-mode="random">Random</button>
+      </div>
+      <div class="hint">Once sends one time. Hold keeps your color on. Cycle rotates marked presets. Random is classic Glow.</div>
+    </div>
+
+    <div class="row">
+      <label class="speed">every <input id="speed" type="number" min="600" step="100" value="1000"> ms</label>
+      <button class="btn" id="stop">Stop</button>
+    </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

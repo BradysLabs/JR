@@ -1,0 +1,9 @@
+{
+  "name": "Glow Picker",
+  "description": "Pick your glow color from presets or RGB.",
+  "category": "Customize",
+  "icon": "fa-magic",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

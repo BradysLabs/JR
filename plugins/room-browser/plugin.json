@@ -1,0 +1,9 @@
+{
+  "name": "Room Browser",
+  "description": "Search and warp to any public room in Jamaa.",
+  "category": "Explore",
+  "icon": "fa-map-marked-alt",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

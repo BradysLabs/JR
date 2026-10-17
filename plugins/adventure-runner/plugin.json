@@ -1,0 +1,11 @@
+{
+  "name": "Adventures",
+  "description": "Join another player's adventure and run it step by step (Return of the Phantoms, more coming).",
+  "category": "Gameplay",
+  "icon": "fa-flag-checkered",
+  "main": "index.html",
+  "author": "BradysLabs",
+  "version": "2.0.0",
+  "type": "ui",
+  "game": "animal-jam-classic"
+}

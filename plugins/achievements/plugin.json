@@ -1,0 +1,10 @@
+{
+  "name": "Achievements",
+  "description": "Pick and send in-game achievements one at a time or all at once.",
+  "category": "Gameplay",
+  "icon": "fa-trophy",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui",
+  "game": "animal-jam-classic"
+}

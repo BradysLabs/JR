@@ -13,7 +13,8 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "start": "electron .",
-    "build": "electron-builder build --win"
+    "build": "electron-builder build --win --publish never",
+    "release": "electron-builder build --win --publish always"
   },
   "repository": {
     "type": "git",
@@ -23,14 +24,26 @@
     "appId": "com.bradyslabs.jr",
     "productName": "JR",
     "copyright": "Copyright (c) 2026 BradysLabs",
+    "artifactName": "JR-Setup-${version}.${ext}",
     "files": [
       "src/**/*",
       "plugins/**/*",
+      "assets/**/*",
       "package.json",
       "LICENSE"
     ],
+    "asarUnpack": [
+      "plugins/**/*",
+      "assets/**/*"
+    ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "JR"
     },
     "publish": {
       "provider": "github",
@@ -38,6 +51,11 @@
       "repo": "JR"
     }
   },
-  "devDependencies": {},
-  "dependencies": {}
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  }
 }
