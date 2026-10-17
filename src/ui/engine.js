@@ -267,7 +267,12 @@ module.exports = function createEngine (info) {
     const list = host.load()
     const waiting = list.filter(p => p.status === 'needs-approval' || p.status === 'changed').length
     log({ type: 'notify', message: `Loaded ${list.length} plugins${waiting ? ` (${waiting} waiting for your OK)` : ''}.` })
-    items.load().then(() => log({ type: 'notify', message: `Item names ready (game version ${items.deployVersion}).` })).catch(() => {})
+    const loadItems = () => items.load()
+      .then(() => log({ type: 'success', message: `Item names ready (${items.clothing.size + items.den.size} items, game version ${items.deployVersion}).` }))
+      .catch((e) => log({ type: 'warn', message: `Item names didn't load: ${e.message}` }))
+    loadItems()
+    // Try again once the game has logged in (then JR knows the exact game version).
+    gameServer.once('session', () => { if (!items.ready) setTimeout(loadItems, 3000) })
     if (settings.openGameOnStart) play().catch(e => log({ type: 'error', message: e.message }))
   }
 
