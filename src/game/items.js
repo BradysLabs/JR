@@ -17,6 +17,7 @@ const zlib = require('zlib')
 const path = require('path')
 const fs = require('fs')
 const { readAmf3 } = require('./amf3')
+const { request } = require('./http')
 
 const DEFAULT_CONTENT = 'https://ajcontent.akamaized.net/'
 const PACKS = { strings: '10230', clothing: '1000', den: '1030' }
@@ -45,12 +46,12 @@ class ItemDatabase {
    * @param {object} options
    * @param {string} options.cacheDir
    * @param {() => ({content?: string, version?: string}|null)} [options.source] current game session
-   * @param {typeof fetch} [options.fetch]
+   * @param {typeof request} [options.request]
    */
-  constructor ({ cacheDir, source = () => null, fetch: fetcher = globalThis.fetch }) {
+  constructor ({ cacheDir, source = () => null, request: http = request }) {
     this.cacheDir = cacheDir
     this.source = source
-    this.fetch = fetcher
+    this.http = http
     this.clothing = new Map()
     this.den = new Map()
     this.deployVersion = null
@@ -66,7 +67,7 @@ class ItemDatabase {
   async latestVersion () {
     const s = this.source()
     if (s && s.version) return String(s.version)
-    const response = await this.fetch('https://www.animaljam.com/flashvars')
+    const response = await this.http('https://www.animaljam.com/flashvars')
     if (!response.ok) throw new Error(`flashvars answered ${response.status}`)
     const fv = await response.json()
     if (!fv.deploy_version) throw new Error('No game version in flashvars')
@@ -76,9 +77,9 @@ class ItemDatabase {
   /** Downloads and decodes one pack. */
   async fetchPack (version, id) {
     const url = `${this.contentBase()}${version}/defPacks/${packHash(String(id))}`
-    const response = await this.fetch(url)
+    const response = await this.http(url)
     if (!response.ok) throw new Error(`Item pack ${id} answered ${response.status}`)
-    return decodePack(Buffer.from(await response.arrayBuffer()))
+    return decodePack(await response.buffer())
   }
 
   load () {

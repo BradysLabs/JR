@@ -16,9 +16,9 @@
 const http = require('http')
 const path = require('path')
 const { EventEmitter } = require('events')
-const { Readable } = require('stream')
 const fs = (() => { try { return require('original-fs') } catch (_) { return require('fs') } })()
 const swf = require('./swf')
+const { request } = require('./http')
 
 const CROSSDOMAIN = '<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" /></cross-domain-policy>'
 const HOP_HEADERS = new Set(['connection', 'keep-alive', 'transfer-encoding', 'content-encoding', 'content-length', 'host', 'upgrade', 'proxy-connection'])
@@ -49,14 +49,14 @@ class GameServer extends EventEmitter {
    * @param {() => number} options.proxyPort the profile's game proxy port
    * @param {string} options.cacheDir where patched game files are kept
    * @param {(e: {type: string, message: string}) => void} [options.log]
-   * @param {typeof fetch} [options.fetch]
+   * @param {typeof request} [options.request] HTTP client (Node-based by default)
    */
-  constructor ({ proxyPort, cacheDir, log = () => {}, fetch: fetcher = globalThis.fetch }) {
+  constructor ({ proxyPort, cacheDir, log = () => {}, request: http = request }) {
     super()
     this.proxyPort = proxyPort
     this.cacheDir = cacheDir
     this.log = log
-    this.fetch = fetcher
+    this.http = http
     this.session = null
     this.server = null
     this.patching = new Map()
@@ -167,9 +167,9 @@ class GameServer extends EventEmitter {
     const job = (async () => {
       const source = this.session && this.session.clientURL
       if (!source) throw new Error('No game file address yet')
-      const response = await this.fetch(source)
+      const response = await this.http(source)
       if (!response.ok) throw new Error(`Animal Jam answered ${response.status} for the game file`)
-      const original = Buffer.from(await response.arrayBuffer())
+      const original = await response.buffer()
       const result = swf.disableSecureMode(original)
       fs.mkdirSync(this.cacheDir, { recursive: true })
       fs.writeFileSync(file, result.swf)
@@ -183,14 +183,14 @@ class GameServer extends EventEmitter {
   async _passThrough (req, res, target) {
     const headers = {}
     for (const [k, v] of Object.entries(req.headers)) if (!HOP_HEADERS.has(k) && k !== 'origin' && k !== 'referer') headers[k] = v
-    const init = { method: req.method, headers, redirect: 'follow' }
+    const init = { method: req.method, headers }
     if (req.method !== 'GET' && req.method !== 'HEAD') init.body = await readBody(req)
-    const upstream = await this.fetch(target, init)
+    const upstream = await this.http(target, init)
     const out = {}
-    upstream.headers.forEach((v, k) => { if (!HOP_HEADERS.has(k)) out[k] = v })
+    for (const [k, v] of Object.entries(upstream.headers)) if (!HOP_HEADERS.has(k)) out[k] = v
     res.writeHead(upstream.status, out)
-    if (!upstream.body || req.method === 'HEAD') return res.end()
-    Readable.fromWeb(upstream.body).pipe(res)
+    if (req.method === 'HEAD') { upstream.stream.resume(); return res.end() }
+    upstream.stream.pipe(res)
   }
 }
 
