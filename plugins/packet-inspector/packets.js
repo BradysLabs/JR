@@ -97,8 +97,8 @@ const PACKETS = {
   },
 
   il: {
-    name: 'Worn Items', cat: 'inventory', conf: 'confirmed',
-    desc: 'The items an animal is wearing. Sent for every player in the room (and for you). After the item count, each item is three fields: item id, inventory slot, color.',
+    name: 'Clothing Inventory / Worn Items', cat: 'inventory', conf: 'confirmed',
+    desc: 'Lists a player’s clothing inventory, worn items, or clothing changes. The owner’s full inventory uses five fields per item (definition id, inventory slot, color, equipped avatars, den-store id); other avatars’ worn lists use three.',
     in: ['room id', '?', '?', 'animal id', 'username', '?', '?', 'item count', 'item id', 'inventory slot', 'color'],
     items: { in: { 8: 'clothing' } }
   },

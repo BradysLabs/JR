@@ -40,6 +40,17 @@ const profileWindows = new Map() // profile id -> { win, release }
 let picker = null
 let gate = null
 
+/* -------------------------------------------------------- rich presence */
+
+// Shows JR on the user's Discord profile, with a button to join the JR server.
+const { Presence, activityFor } = require('../discord/presence')
+const presence = new Presence({ clientId: config.discord.clientId })
+const presenceStates = new Map() // webContents id -> { connected, playing, room }
+const presenceStartedAt = Date.now()
+function updatePresence () {
+  presence.set(activityFor([...presenceStates.values()], { invite: config.discord.invite, startedAt: presenceStartedAt }))
+}
+
 /* ------------------------------------------------------------- protocol */
 
 function serveAssets (ses) {
@@ -197,8 +208,18 @@ function prepareGame (log) {
   return gameJob
 }
 
+const appFile = () => path.join(app.getPath('userData'), 'app.json')
+function appSettings () { try { return JSON.parse(fs.readFileSync(appFile(), 'utf8')) } catch (_) { return {} } }
+function saveAppSettings (patch) {
+  const next = { ...appSettings(), ...patch }
+  fs.mkdirSync(path.dirname(appFile()), { recursive: true })
+  fs.writeFileSync(appFile(), JSON.stringify(next, null, 2))
+  return next
+}
+
 function registerIpc () {
-  handle('jr:boot', () => ({ version: app.getVersion(), gate: gateInfo(), invite: config.discord.invite }))
+  handle('jr:boot', () => ({ version: app.getVersion(), gate: gateInfo(), invite: config.discord.invite, skipWarning: !!appSettings().skipWarning }))
+  handle('warning:accept', (e, dontShowAgain) => { if (dontShowAgain) saveAppSettings({ skipWarning: true, warningAcceptedAt: new Date().toISOString() }) })
   handle('gate:start', async () => { if (gate) await gate.start(); return gateInfo() })
   handle('gate:sign-in', async () => { if (gate) await gate.signIn(); return gateInfo() })
   handle('gate:check', async () => { if (gate) await gate.check(); return gateInfo() })
@@ -215,6 +236,14 @@ function registerIpc () {
   })
   handle('picker:show', () => showPicker())
 
+  ipcMain.on('presence', (event, state) => {
+    const id = event.sender.id
+    if (!presenceStates.has(id)) event.sender.once('destroyed', () => { presenceStates.delete(id); updatePresence() })
+    presenceStates.set(id, { connected: !!(state && state.connected), playing: !!(state && state.playing), room: state && typeof state.room === 'string' ? state.room.slice(0, 60) : undefined })
+    updatePresence()
+  })
+  handle('presence:enabled', (e, on) => { saveAppSettings({ richPresence: !!on }); presence.setEnabled(!!on); return !!on })
+
   handle('open-url', (e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url) })
   handle('open-path', (e, p) => shell.openPath(p))
 
@@ -230,9 +259,10 @@ function registerIpc () {
         dataDir: profiles.dirOf(id),
         userData: app.getPath('userData'),
         userPlugins: path.join(app.getPath('userData'), 'plugins'),
-        cacheDir: path.join(app.getPath('userData'), 'cache'),
+        cacheDir: path.join(app.getPath('userData'), 'jr-cache'),
         gate: gateInfo(),
         invite: config.discord.invite,
+        richPresence: appSettings().richPresence !== false,
         packetsPerSecond: config.packetsPerSecond,
         isDev
       }
@@ -262,6 +292,9 @@ async function start () {
   serveAssets(session.defaultSession)
   gate = createGate()
   registerIpc()
+  presence.setEnabled(appSettings().richPresence !== false)
+  updatePresence()
+  presence.start()
   showPicker()
   checkForUpdates()
 }
@@ -279,3 +312,4 @@ function checkForUpdates () {
 }
 
 app.on('window-all-closed', () => app.quit())
+app.on('will-quit', () => presence.stop())

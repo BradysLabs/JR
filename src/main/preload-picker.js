@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('jr', {
     remove: (id) => call('profiles:remove', id),
     open: (id) => call('profiles:open', id)
   },
+  acceptWarning: (dontShowAgain) => call('warning:accept', !!dontShowAgain),
   openUrl: (url) => call('open-url', url),
   win: (action) => ipcRenderer.send('win', action)
 })

@@ -18,6 +18,8 @@ const path = require('path')
 const { EventEmitter } = require('events')
 const fs = (() => { try { return require('original-fs') } catch (_) { return require('fs') } })()
 const swf = require('./swf')
+
+const CLIENT_PATCH = 3
 const { request } = require('./http')
 
 const CROSSDOMAIN = '<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" /></cross-domain-policy>'
@@ -55,10 +57,11 @@ class GameServer extends EventEmitter {
    * @param {(e: {type: string, message: string}) => void} [options.log]
    * @param {typeof request} [options.request] HTTP client (Node-based by default)
    */
-  constructor ({ proxyPort, cacheDir, log = () => {}, request: http = request }) {
+  constructor ({ proxyPort, cacheDir, log = () => {}, request: http = request, clientOptions = () => ({}) }) {
     super()
     this.proxyPort = proxyPort
     this.cacheDir = cacheDir
+    this.clientOptions = clientOptions
     this.log = log
     this.http = http
     this.session = null
@@ -171,23 +174,29 @@ class GameServer extends EventEmitter {
 
   /** The official client for this version, with secure mode turned off. Cached. */
   async patchedClient (version) {
-    const file = path.join(this.cacheDir, `ajclient-${version}.swf`)
+    // Bump CLIENT_PATCH when JR's changes to the game file change, so old copies aren't reused.
+    const options = this.clientOptions() || {}
+    const variant = options.antiIdle ? '-awake' : ''
+    const file = path.join(this.cacheDir, `ajclient-${version}-jr${CLIENT_PATCH}${variant}.swf`)
     if (fs.existsSync(file)) return fs.readFileSync(file)
-    if (this.patching.has(version)) return this.patching.get(version)
+    const jobKey = version + variant
+    if (this.patching.has(jobKey)) return this.patching.get(jobKey)
     const job = (async () => {
       const source = this.session && this.session.clientURL
       if (!source) throw new Error('No game file address yet')
       const response = await this.http(source)
       if (!response.ok) throw new Error(`Animal Jam answered ${response.status} for the game file`)
       const original = await response.buffer()
-      const result = swf.disableSecureMode(original)
+      const result = swf.patchClient(original, { antiIdle: !!options.antiIdle })
+      if (options.antiIdle && result.idleKick === 'missing') this.log({ type: 'warn', message: 'Couldn\u2019t find the idle logout in this game version; Anti-kick may not work.' })
+      if (result.shopRefresh === 'missing') this.log({ type: 'warn', message: 'Couldn\u2019t find the My Shop screen in this game version; refills may only show after you log in again.' })
       fs.mkdirSync(this.cacheDir, { recursive: true })
       fs.writeFileSync(file, result.swf)
       this.log({ type: 'success', message: `Prepared game version ${version}.` })
       return result.swf
     })()
-    this.patching.set(version, job)
-    try { return await job } finally { this.patching.delete(version) }
+    this.patching.set(jobKey, job)
+    try { return await job } finally { this.patching.delete(jobKey) }
   }
 
   async _passThrough (req, res, target) {

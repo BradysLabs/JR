@@ -1,0 +1,10 @@
+{
+  "name": "My Shop Templates",
+  "description": "Save what's in your My Shop as a template, rename your templates, and refill an empty shop in one click or automatically.",
+  "author": "BradysLabs",
+  "category": "Trading",
+  "icon": "fa-store",
+  "type": "ui",
+  "main": "index.html",
+  "game": "animal-jam-classic"
+}

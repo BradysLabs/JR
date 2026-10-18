@@ -171,7 +171,7 @@ function readAbc (buf, start) {
     readTraits(null)
     bodies.set(method, { codeStart, codeLength, maxStackPos })
   }
-  return { methods, bodies }
+  return { methods, bodies, multinames }
 }
 
 const OP = { nop: 0x02, pushfalse: 0x27, pushtrue: 0x26, returnvalue: 0x48 }
@@ -215,4 +215,90 @@ function disableSecureMode (swf) {
   return { swf: pack(version, out), changed: !already, before }
 }
 
-module.exports = { unpack, pack, tags, readAbc, disableSecureMode }
+/** Every ABC block in an unpacked SWF body, read. */
+function * abcBlocks (body) {
+  for (const tag of tags(body)) {
+    if (tag.code !== 82 && tag.code !== 72) continue
+    let abcStart = tag.dataStart
+    if (tag.code === 82) {
+      abcStart += 4
+      while (body[abcStart] !== 0) abcStart++
+      abcStart++
+    }
+    yield readAbc(body, abcStart)
+  }
+}
+
+const u30Bytes = (n) => {
+  const out = []
+  do { let b = n & 0x7F; n = Math.floor(n / 128); if (n) b |= 0x80; out.push(b) } while (n)
+  return out
+}
+
+/**
+ * Makes the game ask the server for your own My Shop every time you open it,
+ * instead of showing the copy it saved earlier. Without this, items JR puts
+ * in your shop don't show until you log in again.
+ *
+ * ShopToSell.requestShopList starts with
+ *   if (_isDenSaleShopOwner && ShopManager.myShopItems[id] != null) use the saved copy
+ * JR swaps the "getlex _isDenSaleShopOwner" for "pushfalse" (same length).
+ * @returns {'patched'|'already'|'missing'}
+ */
+function patchShopRefresh (body) {
+  for (const { methods, bodies, multinames } of abcBlocks(body)) {
+    const m = methods.find(x => x.className === 'ShopToSell' && x.name === 'requestShopList' && x.kind === 1)
+    if (!m) continue
+    const b = bodies.get(m.method)
+    const code = body.subarray(b.codeStart, b.codeStart + b.codeLength)
+    const nameIndexes = multinames.map((x, i) => (x === '_isDenSaleShopOwner' ? i : -1)).filter(i => i > 0)
+    for (const index of nameIndexes) {
+      const op = Buffer.from([0x60, ...u30Bytes(index)]) // getlex _isDenSaleShopOwner
+      const at = code.indexOf(op)
+      if (at === -1) continue
+      code[at] = OP.pushfalse
+      code.fill(OP.nop, at + 1, at + op.length)
+      return 'patched'
+    }
+    // Already patched: starts with getlocal0, pushscope, pushfalse.
+    if (code[2] === OP.pushfalse) return 'already'
+  }
+  return 'missing'
+}
+
+/**
+ * Turns off the game's own idle logout. The game counts down from the last
+ * message it sent itself (7 minutes), shows a warning, then disconnects; it
+ * doesn't see the keep-alive messages JR sends. JR replaces
+ * KeepAlive.timeLeftTimer with "return", and sends the keep-alives instead.
+ * @returns {'patched'|'already'|'missing'}
+ */
+function patchIdleKick (body) {
+  for (const { methods, bodies } of abcBlocks(body)) {
+    const m = methods.find(x => x.className === 'KeepAlive' && x.name === 'timeLeftTimer' && x.kind === 1)
+    if (!m) continue
+    const b = bodies.get(m.method)
+    const code = body.subarray(b.codeStart, b.codeStart + b.codeLength)
+    if (code[code.length - 1] === 0x47 && code.subarray(0, code.length - 1).every(x => x === OP.nop)) return 'already'
+    code.fill(OP.nop)
+    code[code.length - 1] = 0x47 // returnvoid
+    return 'patched'
+  }
+  return 'missing'
+}
+
+/**
+ * All of JR's changes to the game file.
+ * @param {{antiIdle?: boolean}} [options] antiIdle: turn off the game's idle logout
+ * @returns {{swf: Buffer, shopRefresh: string, idleKick: string}}
+ */
+function patchClient (swf, { antiIdle = false } = {}) {
+  const secure = disableSecureMode(swf) // throws if the game changed too much
+  const { version, body } = unpack(secure.swf)
+  const out = Buffer.from(body)
+  const shopRefresh = patchShopRefresh(out)
+  const idleKick = antiIdle ? patchIdleKick(out) : 'off'
+  return { swf: pack(version, out), shopRefresh, idleKick }
+}
+
+module.exports = { unpack, pack, tags, readAbc, disableSecureMode, patchShopRefresh, patchIdleKick, patchClient }

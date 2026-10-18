@@ -1,0 +1,10 @@
+{
+  "name": "Inventory Reader",
+  "description": "Keeps a profile-local copy of the clothing inventory JR receives from Animal Jam.",
+  "author": "BradysLabs",
+  "category": "Trading",
+  "icon": "fa-box-open",
+  "type": "game",
+  "main": "index.js",
+  "game": "animal-jam-classic"
+}

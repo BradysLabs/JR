@@ -25,4 +25,4 @@ Drop a `.ajart` or `.ajgart` file to see the picture inside. You need the uuid o
 
 A masterpiece file holds the picture (JPEG), its type (`aja2id` for `.ajart`) and the owner's uuid. That data is packed (AMF3), compressed (zlib) and encrypted (AES-128) with a key made from the owner's uuid.
 
-Based on the masterpiece encoder in animaljam.js by Sxip, used with permission. Files are byte-for-byte identical to the ones animaljam.js makes.
+Masterpieces are written in Animal Jam’s own masterpiece format.

@@ -13,7 +13,7 @@ let invite = ''
 document.querySelectorAll('[data-win]').forEach(b => { b.onclick = () => window.jr.win(b.dataset.win) })
 
 function show (id) {
-  for (const s of ['splash', 'gate', 'pick', 'create']) $(s).classList.toggle('hidden', s !== id)
+  for (const s of ['splash', 'warn', 'gate', 'pick', 'create']) $(s).classList.toggle('hidden', s !== id)
   $(id).querySelector('.center').classList.remove('rise')
   void $(id).offsetWidth
   $(id).querySelector('.center').classList.add('rise')
@@ -61,6 +61,8 @@ async function start () {
   $('tbVersion').textContent = 'v' + boot.version
   $('splashVersion').textContent = 'v' + boot.version
   await sleep(350)
+  if (!boot.skipWarning) await showWarning()
+  show('splash')
   renderSteps(1, details)
 
   let gate = boot.gate
@@ -79,6 +81,19 @@ async function start () {
   renderSteps(3, details)
   await sleep(250)
   showProfiles(list)
+}
+
+/* ------------------------------------------------------------- warning */
+
+function showWarning () {
+  show('warn')
+  return new Promise(resolve => {
+    $('warnOk').onclick = async () => {
+      $('warnOk').disabled = true
+      try { await window.jr.acceptWarning($('warnSkip').checked) } catch (_) {}
+      resolve()
+    }
+  })
 }
 
 /* ---------------------------------------------------------------- gate */

@@ -2,38 +2,39 @@
 
 JR is a plugin toolkit for Animal Jam Classic, made by **BradysLabs**. It replaces Jam Reborn.
 
-Version 0.0.0 is in progress.
+JR is for members of the [JR Discord](https://discord.gg/UvXzA2gK5W). You sign in with Discord the first time you open it.
 
-## What's here so far
+## Install
 
-| Folder | What it is |
-|---|---|
-| `src/engine` | The game proxy. It reads and writes Animal Jam's messages (xt, JSON and XML), passes them through plugins, and limits how fast plugins send packets. |
-| `src/plugins` | Finds plugins, asks the user before running new ones, and keeps each plugin's saved data inside the profile. |
-| `src/profiles` | Profiles. Each profile is its own JR window with its own folder, so settings and plugin data never overlap. |
-| `plugins` | Plugins that ship with JR (Membership, Packet Spammer). |
-| `test` | Tests, including a fake Animal Jam server. Run them with `npm test`. |
+Download `JR-Setup-<version>.exe` from [Releases](https://github.com/BradysLabs/JR/releases) and run it. JR updates itself when a new version comes out.
 
-## Profiles
+## What JR does
 
-Each profile has its own folder:
+- **Profiles:** each profile opens in its own window with its own settings and login, so you can play two accounts at once.
+- **Plugins:** packet tools, adventures, room browser, item previews, glow picker and more. Plugins written for Jam Reborn keep working. See [docs/plugins.md](docs/plugins.md).
+- **Trading:** shows what the other player offers, values from the Item Worth Wiki in Diamonds, and a favor scale.
+- **My Shop Templates:** save your shop and refill it in one click or automatically.
+- **Themes:** customize the home screen and pick a color theme.
+- **Anti-kick:** optional, keeps you from being logged out for being idle.
+- **Discord status:** shows JR on your Discord profile, with a link to the JR server.
+
+## Before you use it
+
+JR is unofficial and not affiliated with WildWorks. Using it may go against Animal Jam's Terms of Service and can result in a suspension or ban. Use JR at your own risk. BradysLabs and the JR team are not responsible for account suspensions, bans or lost items that result from using JR.
+
+JR never stores your Animal Jam password.
+
+## For developers
 
 ```
-profiles.json                 the list of profiles
-profiles/<id>/settings.json
-profiles/<id>/plugins.json    plugins this profile approved
-profiles/<id>/plugin-data/    each plugin's saved data
-profiles/<id>/session/        the profile's browser data
+npm install
+npm start        run JR
+npm test         run the tests
+npm run build    build the Windows installer into dist/
 ```
-
-A profile can only be open in one JR window at a time.
-
-## Plugins
-
-See [docs/plugins.md](docs/plugins.md). Plugins written for Jam Reborn keep working.
 
 ## License
 
 Copyright (c) 2026 BradysLabs. All rights reserved. See [LICENSE](LICENSE).
 
-JR is not affiliated with WildWorks. Animal Jam is a trademark of WildWorks, Inc.
+Animal Jam is a trademark of WildWorks, Inc. Item values come from the Animal Jam Item Worth Wiki (aj-item-worth.fandom.com), CC BY-SA.

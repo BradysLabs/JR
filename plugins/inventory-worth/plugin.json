@@ -1,0 +1,10 @@
+{
+  "name": "Inventory Worth",
+  "description": "Build a personal inventory list and estimate its worth using the Animal Jam Item Worth Wiki.",
+  "category": "Trading",
+  "icon": "fa-box-open",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui",
+  "game": "animal-jam-classic"
+}

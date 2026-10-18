@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Shop Templates</title>
+  <style>
+    :root {
+      --bg: #0b0b0c; --panel: #111113; --panel2: #151518; --line: #1f1f22; --line2: #2f2f34; --line3: #45454b;
+      --text: #ededee; --dim: #a6a6ac; --faint: #6c6c72; --good: #4ade80; --warn: #fbbf24; --bad: #f87171;
+      --mono: ui-monospace, "JetBrains Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      padding: 18px; display: flex; flex-direction: column; gap: 18px; min-height: 100vh;
+    }
+    h1 { font-size: 17px; font-weight: 650; margin: 0; letter-spacing: -0.2px; }
+    h2 { font-size: 11px; font-weight: 600; margin: 0 0 8px; color: var(--faint); text-transform: uppercase; letter-spacing: 1px; }
+    .sub { color: var(--faint); font-size: 12px; margin-top: 3px; }
+    .checks { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--dim); }
+    .check::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--line3); margin-right: 6px; vertical-align: 1px; }
+    .check.on::before { background: var(--text); }
+    button {
+      height: 32px; padding: 0 13px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer;
+      background: transparent; color: var(--text); border: 1px solid var(--line2); white-space: nowrap;
+    }
+    button:hover:not(:disabled) { border-color: var(--line3); }
+    button.primary { background: #f4f4f5; color: #0b0b0c; border: 0; }
+    button.primary:hover:not(:disabled) { background: #fff; }
+    button.ghost { border-color: transparent; color: var(--faint); font-weight: 500; padding: 0 8px; }
+    button.ghost:hover:not(:disabled) { color: var(--text); border-color: transparent; }
+    button.danger { color: var(--bad); }
+    button:disabled { opacity: 0.4; cursor: default; }
+    input, select {
+      background: var(--panel); color: var(--text); border: 1px solid var(--line2);
+      border-radius: 9px; font: inherit; height: 32px; padding: 0 10px; outline: none;
+    }
+    input:focus, select:focus { border-color: #5a5a60; }
+    .card { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+    .shop { padding: 14px; display: grid; gap: 12px; }
+    .shop + .shop, .tpl + .tpl { margin-top: 10px; }
+    .shop-head, .tpl-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .title { font-weight: 650; font-size: 14px; }
+    .meta { color: var(--faint); font-size: 12px; }
+    .sp { flex: 1; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .row label { color: var(--dim); font-size: 12px; }
+    .empty { color: var(--faint); padding: 18px; text-align: center; font-size: 12.5px; border: 1px dashed var(--line2); border-radius: 14px; }
+    .tpl { overflow: hidden; }
+    .tpl-head { padding: 12px 14px; cursor: pointer; }
+    .tpl-head .chev { color: var(--faint); transition: transform .2s; font-size: 11px; }
+    .tpl.open .tpl-head .chev { transform: rotate(90deg); }
+    .tpl-body { display: none; border-top: 1px solid var(--line); }
+    .tpl.open .tpl-body { display: block; }
+    .item { display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--line); }
+    .item:first-child { border-top: 0; }
+    .item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item .kind { color: var(--faint); font-size: 11px; margin-left: 6px; }
+    .owned { font-size: 11.5px; color: var(--dim); font-family: var(--mono); }
+    .owned.none { color: var(--warn); }
+    .price { display: flex; align-items: center; gap: 4px; }
+    .price input { width: 84px; height: 28px; font-family: var(--mono); font-size: 12px; text-align: right; }
+    .price select { height: 28px; font-size: 12px; padding: 0 6px; }
+    .tpl-foot { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--panel2); flex-wrap: wrap; }
+    .rename { display: flex; gap: 6px; }
+    .rename input { width: 220px; }
+    .total { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+    .log { display: grid; gap: 6px; }
+    .log div { font-size: 12px; color: var(--dim); padding-left: 12px; border-left: 2px solid var(--line2); }
+    .log .good { border-color: var(--good); }
+    .log .warn { border-color: var(--warn); }
+    .log .bad { border-color: var(--bad); color: var(--bad); }
+    .log time { color: var(--faint); font-family: var(--mono); font-size: 11px; margin-right: 8px; }
+    #status { font-size: 12px; min-height: 18px; color: var(--dim); }
+    #status.error { color: var(--bad); }
+    .note { font-size: 11.5px; color: var(--faint); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Shop Templates</h1>
+    <div class="sub">Save what's in your shop as a template, then refill the shop from it in one click or automatically.</div>
+    <div class="checks" id="checks"></div>
+  </header>
+
+  <section>
+    <h2>Your shops</h2>
+    <div id="shops"></div>
+    <div class="note" style="margin-top:8px">Close the shop window in Animal Jam before refilling. JR only adds items to your shop; it never takes anything out.</div>
+  </section>
+
+  <section>
+    <h2>Templates</h2>
+    <div id="templates"></div>
+  </section>
+
+  <div id="status"></div>
+
+  <section>
+    <h2>Activity</h2>
+    <div class="log" id="log"></div>
+  </section>
+
+  <script>
+    (async () => {
+      const $ = (id) => document.getElementById(id)
+      const jam = window.jam || await new Promise(resolve => {
+        const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 25)
+      })
+      const escape = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+      const api = () => jam.dispatch.getState('shopTemplates')
+
+      const open = new Set()
+      let renaming = null
+      let renamingShop = null
+      let confirmDelete = null
+      let lastKey = ''
+      let snap = null
+
+      const setStatus = (text, isError) => { $('status').textContent = text || ''; $('status').className = isError ? 'error' : '' }
+      const money = (n, cur) => `${Number(n).toLocaleString()} ${cur === 3 ? 'Diamonds' : 'Gems'}`
+      const when = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) } catch (_) { return '' } }
+
+      async function act (fn, okText) {
+        const a = api()
+        if (!a) return setStatus('Turn on the My Shop Restocker plugin in the plugin hub first.', true)
+        try {
+          setStatus('Working…')
+          const result = await fn(a)
+          setStatus(typeof okText === 'function' ? okText(result) : okText || '')
+        } catch (error) {
+          setStatus(error && error.message ? error.message : String(error), true)
+        }
+        refresh(true)
+      }
+
+      function totals (items) {
+        const sum = { 3: 0, 0: 0 }
+        for (const i of items) sum[i.currency === 3 ? 3 : 0] += Number(i.cost) || 0
+        return [sum[3] ? money(sum[3], 3) : '', sum[0] ? money(sum[0], 0) : ''].filter(Boolean).join(' + ') || '—'
+      }
+
+      function renderChecks (s) {
+        const c = (on, label) => `<span class="check ${on ? 'on' : ''}">${label}</span>`
+        $('checks').innerHTML = !api()
+          ? '<span class="check">My Shop Restocker is off</span>'
+          : c(s.ready.loggedIn, 'Logged in') + c(s.ready.room, 'In a room') + c(s.ready.clothing, 'Clothing seen') + c(s.ready.den, 'Den items seen')
+      }
+
+      function renderShops (s) {
+        const tplOptions = (selected) => '<option value="">Off</option>' + s.templates.map(t => `<option value="${escape(t.id)}" ${t.id === selected ? 'selected' : ''}>${escape(t.name)}</option>`).join('')
+        if (!s.stands.length) {
+          $('shops').innerHTML = `<div class="empty">${s.ready.den ? 'No My Shop stands in your den items yet.' : 'Go to your den once so JR can find your My Shop.'}</div>`
+          return
+        }
+        $('shops').innerHTML = s.stands.map(st => {
+          const auto = st.auto || {}
+          const count = st.count == null ? 'not checked yet' : `${st.count} item${st.count === 1 ? '' : 's'} listed · checked ${when(st.checkedAt)}`
+          return `<div class="card shop" data-shop="${st.id}">
+            <div class="shop-head">
+              ${renamingShop === st.id
+                ? `<div class="rename"><input id="shop-name-${st.id}" value="${escape(st.named ? st.name : '')}" placeholder="${escape(st.standName)}" maxlength="40"><button class="primary" data-act="shop-rename-ok">Save</button><button class="ghost" data-act="shop-rename-cancel">Cancel</button></div>`
+                : `<div><div class="title">${escape(st.name)}</div><div class="meta">${st.named ? `${escape(st.standName)} · ` : ''}#${st.id} · ${count}${st.placed ? '' : ' · not placed in your den'}</div></div>`}
+              <span class="sp"></span>
+              ${renamingShop === st.id ? '' : '<button class="ghost" data-act="shop-rename">Rename</button>'}
+              <button data-act="check" ${s.busy ? 'disabled' : ''}>Check</button>
+              <button data-act="save" ${s.busy ? 'disabled' : ''}>Save as template</button>
+            </div>
+            <div class="row">
+              <label>Refill from</label>
+              <select data-field="refill">${s.templates.length ? s.templates.map(t => `<option value="${escape(t.id)}" ${t.id === auto.templateId ? 'selected' : ''}>${escape(t.name)}</option>`).join('') : '<option value="">No templates yet</option>'}</select>
+              <button class="primary" data-act="refill" ${s.busy || !s.templates.length ? 'disabled' : ''}>Refill now</button>
+              <span class="sp"></span>
+              <label>Auto refill</label>
+              <select data-field="auto">${tplOptions(auto.templateId)}</select>
+              <select data-field="when" ${auto.templateId ? '' : 'disabled'}>
+                <option value="empty" ${auto.when !== 'sale' ? 'selected' : ''}>When the shop is empty</option>
+                <option value="sale" ${auto.when === 'sale' ? 'selected' : ''}>After every sale</option>
+              </select>
+            </div>
+          </div>`
+        }).join('')
+      }
+
+      function renderTemplates (s) {
+        if (!s.templates.length) {
+          $('templates').innerHTML = '<div class="empty">No templates yet. Fill your shop in Animal Jam, then press <b>Save as template</b> above.</div>'
+          return
+        }
+        const a = api()
+        $('templates').innerHTML = s.templates.map(t => {
+          const isOpen = open.has(t.id)
+          let avail = []
+          if (isOpen && a) { try { avail = a.availability(t.id) } catch (_) {} }
+          const head = renaming === t.id
+            ? `<div class="rename" data-stop><input id="rename-${escape(t.id)}" value="${escape(t.name)}" maxlength="40"><button class="primary" data-act="rename-ok">Save</button><button class="ghost" data-act="rename-cancel">Cancel</button></div>`
+            : `<span class="chev">▶</span><div><div class="title">${escape(t.name)}</div><div class="meta">${t.items.length} item${t.items.length === 1 ? '' : 's'} · saved ${new Date(t.createdAt).toLocaleDateString()}</div></div>`
+          const items = t.items.map((it, i) => {
+            const owned = avail[i] ? avail[i].owned : null
+            return `<div class="item" data-index="${i}">
+              <div class="name" title="${escape(it.name)}">${escape(it.name)}<span class="kind">${it.kind === 'den' ? 'Den' : 'Clothing'}</span></div>
+              <span class="owned ${owned === 0 ? 'none' : ''}">${owned == null ? '' : owned === 0 ? 'none free' : `${owned} free`}</span>
+              <div class="price" data-stop>
+                <input type="number" min="1" step="1" value="${Number(it.cost)}" data-field="cost">
+                <select data-field="currency"><option value="3" ${it.currency === 3 ? 'selected' : ''}>Diamonds</option><option value="0" ${it.currency !== 3 ? 'selected' : ''}>Gems</option></select>
+              </div>
+              <button class="ghost" data-act="remove-item" title="Remove from template">✕</button>
+            </div>`
+          }).join('')
+          return `<div class="card tpl ${isOpen ? 'open' : ''}" data-tpl="${escape(t.id)}">
+            <div class="tpl-head" data-act="toggle">${head}<span class="sp"></span><span class="total">${totals(t.items)}</span></div>
+            <div class="tpl-body">
+              ${items || '<div class="empty" style="margin:12px;border:0">This template has no items.</div>'}
+              <div class="tpl-foot">
+                <button data-act="rename">Rename</button>
+                <span class="sp"></span>
+                <button class="danger" data-act="delete">${confirmDelete === t.id ? 'Press again to delete' : 'Delete'}</button>
+              </div>
+            </div>
+          </div>`
+        }).join('')
+      }
+
+      function renderLog (s) {
+        $('log').innerHTML = s.activity.length
+          ? s.activity.map(e => `<div class="${escape(e.kind)}"><time>${when(e.at)}</time>${escape(e.text)}</div>`).join('')
+          : '<div>Nothing yet.</div>'
+      }
+
+      function refresh (force) {
+        const a = api()
+        snap = a ? a.snapshot() : { ready: {}, stands: [], templates: [], activity: [], busy: false }
+        const key = JSON.stringify(snap) + [...open].join() + renaming + renamingShop + confirmDelete
+        if (!force && key === lastKey) return
+        // Don't redraw under the cursor while someone is typing.
+        const el = document.activeElement
+        if (!force && el && el.tagName === 'INPUT' && (el.closest('#templates') || el.closest('.rename'))) return
+        lastKey = key
+        renderChecks(snap); renderShops(snap); renderTemplates(snap); renderLog(snap)
+        if (renaming) { const input = document.getElementById(`rename-${renaming}`); if (input) { input.focus(); input.select() } }
+        if (renamingShop != null) { const input = document.getElementById(`shop-name-${renamingShop}`); if (input) { input.focus(); input.select() } }
+      }
+
+      /* ------------------------------------------------------- events */
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-act]')
+        if (!btn) return
+        if (e.target.closest('[data-stop]') && btn.dataset.act === 'toggle') return
+        const shopEl = btn.closest('[data-shop]')
+        const tplEl = btn.closest('[data-tpl]')
+        const shopId = shopEl && Number(shopEl.dataset.shop)
+        const tplId = tplEl && tplEl.dataset.tpl
+        const act_ = btn.dataset.act
+        if (act_ !== 'delete') confirmDelete = null
+
+        if (act_ === 'toggle') { if (renaming) return; open.has(tplId) ? open.delete(tplId) : open.add(tplId); return refresh(true) }
+        if (act_ === 'shop-rename') { renamingShop = shopId; renaming = null; return refresh(true) }
+        if (act_ === 'shop-rename-cancel') { renamingShop = null; return refresh(true) }
+        if (act_ === 'shop-rename-ok') {
+          const value = document.getElementById(`shop-name-${shopId}`).value
+          return act(a => { const n = a.renameShop(shopId, value); renamingShop = null; return n }, n => n ? `Shop renamed to "${n}".` : 'Shop name reset.')
+        }
+        if (act_ === 'check') return act(a => a.readShop(shopId), r => `${r.items.length} item${r.items.length === 1 ? '' : 's'} in that shop right now.`)
+        if (act_ === 'save') {
+          const n = snap.templates.length + 1
+          return act(a => a.saveTemplate(shopId, `Shop template ${n}`), t => { open.add(t.id); renaming = t.id; return `Saved ${t.items.length} item${t.items.length === 1 ? '' : 's'}. Give the template a name.` })
+        }
+        if (act_ === 'refill') {
+          const templateId = shopEl.querySelector('[data-field=refill]').value
+          return act(a => a.restock(shopId, templateId), r => r.full ? 'That shop already has everything from the template.' : `Added ${r.added} item${r.added === 1 ? '' : 's'}.${r.missing && r.missing.length ? ` ${r.missing.length} not in your inventory.` : ''}`)
+        }
+        if (act_ === 'rename') { renamingShop = null; renaming = tplId; open.add(tplId); return refresh(true) }
+        if (act_ === 'rename-cancel') { renaming = null; return refresh(true) }
+        if (act_ === 'rename-ok') {
+          const value = document.getElementById(`rename-${tplId}`).value
+          return act(a => { a.renameTemplate(tplId, value); renaming = null }, 'Renamed.')
+        }
+        if (act_ === 'delete') {
+          if (confirmDelete !== tplId) { confirmDelete = tplId; return refresh(true) }
+          confirmDelete = null
+          open.delete(tplId)
+          return act(a => a.deleteTemplate(tplId), 'Template deleted.')
+        }
+        if (act_ === 'remove-item') {
+          const index = Number(btn.closest('[data-index]').dataset.index)
+          return act(a => a.removeTemplateItem(tplId, index), 'Removed from the template.')
+        }
+      })
+
+      document.addEventListener('change', (e) => {
+        const el = e.target
+        const shopEl = el.closest('[data-shop]')
+        const tplEl = el.closest('[data-tpl]')
+        if (shopEl && (el.dataset.field === 'auto' || el.dataset.field === 'when')) {
+          const shopId = Number(shopEl.dataset.shop)
+          const templateId = shopEl.querySelector('[data-field=auto]').value
+          const mode = shopEl.querySelector('[data-field=when]').value
+          return act(a => a.setAuto(shopId, templateId || null, mode), templateId ? (mode === 'sale' ? 'Auto refill on: after every sale.' : 'Auto refill on: when the shop is empty.') : 'Auto refill off.')
+        }
+        if (tplEl && (el.dataset.field === 'cost' || el.dataset.field === 'currency')) {
+          const row = el.closest('[data-index]')
+          const index = Number(row.dataset.index)
+          const cost = row.querySelector('[data-field=cost]').value
+          const currency = Number(row.querySelector('[data-field=currency]').value)
+          return act(a => a.setPrice(tplEl.dataset.tpl, index, cost, currency), 'Price saved.')
+        }
+      })
+
+      document.addEventListener('keydown', (e) => {
+        if (renamingShop != null) {
+          if (e.key === 'Enter') { const b = document.querySelector('[data-act=shop-rename-ok]'); if (b) b.click() }
+          if (e.key === 'Escape') { renamingShop = null; refresh(true) }
+          return
+        }
+        if (!renaming) return
+        if (e.key === 'Enter') { const b = document.querySelector('[data-act=rename-ok]'); if (b) b.click() }
+        if (e.key === 'Escape') { renaming = null; refresh(true) }
+      })
+
+      refresh(true)
+      setInterval(() => refresh(false), 1000)
+    })()
+  </script>
+</body>
+</html>

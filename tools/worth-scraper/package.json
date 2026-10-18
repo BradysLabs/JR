@@ -1,0 +1,10 @@
+{
+  "name": "jr-worth-scraper",
+  "private": true,
+  "description": "Builds values.json for JR from the Animal Jam Item Worth Wiki. No dependencies; needs Node 18+.",
+  "scripts": {
+    "scrape": "node scrape.js",
+    "test": "node test/run.js"
+  },
+  "engines": { "node": ">=18" }
+}

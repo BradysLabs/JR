@@ -86,6 +86,7 @@ let mode = selected ? selected.modes[0] : null;
 
 let running = false;
 let playerId = null;
+let lastMove = null; // where you last walked to, to spot your own ID in movement packets
 let joinReply = null;       // server's answer to our join request
 let prizeOffered = false;   // server opened the prize screen this run
 let prizeClaimed = false;   // a prize was claimed this run
@@ -201,6 +202,28 @@ function handleIncoming(message) {
     return;
   }
 
+  // Movement: %xt%au%<room>%<count>%(<id>%<points>%<x>%<y>...%<flag>)*
+  // Some adventures (e.g. Bitter Sweets) never send "qw"; your ID is the
+  // player who moved to where you just walked.
+  if (command === 'au' && lastMove) {
+    const count = Number(parts[4]) || 0;
+    let i = 5;
+    for (let n = 0; n < count && i + 1 < parts.length; n++) {
+      const id = parts[i];
+      const points = Number(parts[i + 1]) || 0;
+      const coords = parts.slice(i + 2, i + 2 + points * 2);
+      i += 2 + points * 2 + 1;
+      for (let k = 0; k + 1 < coords.length; k += 2) {
+        if (coords[k] === lastMove.x && coords[k + 1] === lastMove.y && /^\d+$/.test(id)) {
+          if (playerId !== id) { playerId = id; log('info', `Player ID ${playerId}`); }
+          lastMove = null;
+          return;
+        }
+      }
+    }
+    return;
+  }
+
   // Answer to our join request: %xt%qj%<room>%<1 joined / 0 refused>%<reason or details>%...
   // Adventure started: %xt%qs%<room>%<quest id>%...%<object>%<type>%...
   // Some adventures (e.g. Bittersweets) start right away when you join and
@@ -265,7 +288,11 @@ function setupListeners() {
         if (!packet) return;
         if (packet.direction === 'out') {
           // You picked a prize yourself on the prize screen.
-          if (String(packet.raw || '').includes('%qpgiftdone%')) prizeClaimed = true;
+          const raw = String(packet.raw || '');
+          if (raw.includes('%qpgiftdone%')) prizeClaimed = true;
+          // %xt%o%au%<room>%1%<x>%<y>%<dir>%0%
+          const move = /^%xt%o%au%[^%]*%\d+%(-?\d+)%(-?\d+)%/.exec(raw);
+          if (move) lastMove = { x: move[1], y: move[2] };
           return;
         }
         handleIncoming(packet.raw);
@@ -503,7 +530,11 @@ async function runOnce(adventure, host, leaveAfter, isRejoin) {
     await ctx.send('%xt%o%qmi%{room}%');
     if (adventure.afterStart) await adventure.afterStart(ctx);
 
-    if (!playerId) throw new Error('Could not detect your player ID.');
+    // Only needed for adventures that pick things up; Bitter Sweets doesn't.
+    if (!playerId) {
+      for (let waited = 0; !playerId && waited < 3000; waited += 250) await ctx.wait(250);
+      if (!playerId) log('warn', 'Player ID not detected yet. Walk a step in game if a pickup fails.');
+    }
 
     // ---------- Objectives ----------
     for (stepIndex = 0; stepIndex < adventure.steps.length; stepIndex++) {

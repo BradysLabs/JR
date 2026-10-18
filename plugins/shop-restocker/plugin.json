@@ -1,0 +1,10 @@
+{
+  "name": "My Shop Restocker",
+  "description": "Runs in the background for My Shop Templates: keeps track of your shops and refills them automatically.",
+  "author": "BradysLabs",
+  "category": "Trading",
+  "icon": "fa-store",
+  "type": "game",
+  "main": "index.js",
+  "game": "animal-jam-classic"
+}

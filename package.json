@@ -28,13 +28,15 @@
     "files": [
       "src/**/*",
       "plugins/**/*",
+      "data/worth/values.json",
       "assets/**/*",
       "package.json",
       "LICENSE"
     ],
     "asarUnpack": [
       "plugins/**/*",
-      "assets/**/*"
+      "assets/**/*",
+      "data/worth/values.json"
     ],
     "win": {
       "target": "nsis",

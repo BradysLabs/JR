@@ -38,4 +38,4 @@ The game version (`deploy_version`) comes from `animaljam.com/flashvars` and is 
 
 The item lists are downloaded for the current game version and saved in JR's `cache/` folder. JR checks for a new game version every 30 minutes. Click **Check for update** to check right away. The version in use is shown in the top-right.
 
-Address scheme and hashing are from animaljam.js by Sxip, used with permission.
+Addresses and hashing follow Animal Jam’s own asset scheme.

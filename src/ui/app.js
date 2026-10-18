@@ -13,6 +13,18 @@ if (!info.ok) { document.body.textContent = info.error; throw new Error(info.err
 
 const engine = require(path.join(info.root, 'src', 'ui', 'engine.js'))(info)
 window.jr = engine // handy in DevTools
+const themes = require(path.join(info.root, 'src', 'ui', 'themes.js'))
+themes.applyTheme(document, engine.settings.theme)
+const worthTools = require(path.join(info.root, 'src', 'worth', 'match.js'))
+const valueTools = require(path.join(info.root, 'src', 'worth', 'value.js'))
+let worthByName = new Map()
+// Diamonds per unit (collar grades, BL, RIMs, Betas...), worked out from the wiki itself.
+let worthRates = new Map()
+try {
+  const worthItems = JSON.parse(require('fs').readFileSync(path.join(info.root, 'data', 'worth', 'values.json'), 'utf8')).items || []
+  worthByName = worthTools.indexWorth(worthItems)
+  worthRates = valueTools.buildRates(worthItems.map(it => ({ p: it.page, v: it.variant, g: it.grade, t: it.raw })))
+} catch (_) {}
 
 const inkFor = (hex) => (['#ededee', '#d9a441', '#ffffff'].includes(String(hex).toLowerCase()) ? '#0b0b0c' : '#ffffff')
 const time = (t) => new Date(t).toTimeString().slice(0, 8)
@@ -69,6 +81,9 @@ function renderStatus () {
   $('statusDetail').textContent = '· ' + bits.join(' · ')
   $('playBtn').classList.toggle('playing', playing)
   $('playLabel').textContent = playing ? 'Playing' : 'Play'
+  // Discord Rich Presence (the room is left out in streaming mode).
+  const presenceRoom = connected && room && !engine.application.streamingMode.enabled ? prettyRoom(room) : undefined
+  ipcRenderer.send('presence', { connected, playing, room: presenceRoom })
 }
 function prettyRoom (name) {
   if (/^den/i.test(name)) return 'Den'
@@ -86,6 +101,20 @@ $('playBtn').onclick = attempt(async () => {
   await engine.play()
 })
 $('openLogs').onclick = () => go('logs')
+$('homeCustomize').onclick = () => { go('settings'); setTimeout(() => { const g = $('homeSettings'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 50) }
+
+/** Applies the Home screen options from Settings. */
+function renderHome () {
+  const s = engine.settings
+  const greeting = String(s.homeGreeting || '').trim() || 'What do you want to do?'
+  $('homeGreeting').textContent = greeting.replace(/\{name\}/gi, info.profile.name)
+  $('homeSearch').classList.toggle('hidden', !s.homeShowSearch)
+  $('homePlay').classList.toggle('hidden', !s.homeShowPlay)
+  $('homePins').classList.toggle('hidden', !s.homeShowPins)
+  $('homeTicker').classList.toggle('hidden', !s.homeShowTicker)
+  $('home').dataset.bg = s.homeBackground || 'none'
+}
+renderHome()
 
 function renderPins () {
   const box = $('pins')
@@ -251,7 +280,77 @@ engine.events.on('plugins', () => { if (page === 'plugins') renderPlugins(); if 
 // code 0 = request; offered items start 7 fields after the command:
 // [clothing count][den count][pet count] then clothing (defId, color),
 // den items (6 fields each) and pets (10 fields each).
-const trade = { active: false }
+const trade = { active: false, offered: [], mine: new Map() }
+const ownClothingSlots = new Map()
+const ownDenSlots = new Map()
+
+// Your den items: %xt%di%<room>%<den>%<count>%<?>%, then per item
+// invIdx, defId, ?, version, flag, text, number, text, [10 fields for mannequins], number.
+function rememberOwnDenInventory (message) {
+  const p = message && message.value
+  if (!Array.isArray(p)) return
+  const count = Math.max(0, Math.min(20000, Number(p[5]) || 0))
+  let i = 7
+  const next = new Map()
+  for (let n = 0; n < count && i + 7 < p.length; n++) {
+    const slot = String(p[i])
+    const defId = Number(p[i + 1])
+    i += 8
+    const def = engine.items.getDenItem && engine.items.getDenItem(defId)
+    if (def && def.specialType === 4) i += 10
+    i += 1
+    if (/^\d+$/.test(slot) && defId) next.set(slot, { defId })
+  }
+  ownDenSlots.clear()
+  for (const [slot, item] of next) ownDenSlots.set(slot, item)
+}
+engine.dispatch.onMessage({ type: 'aj', message: 'di', callback: ({ message }) => rememberOwnDenInventory(message) })
+
+function rememberOwnClothingInventory (message) {
+  const p = message && message.value
+  if (!Array.isArray(p) || p.length < 11) return
+  const player = engine.dispatch.getState('player') || {}
+  const ownName = String(player.username || player.userName || player.screenName || player.name || '').toLowerCase()
+  if (!ownName || String(p[7] || '').toLowerCase() !== ownName) return
+
+  const kind = Number(p[4])
+  if (kind === 0) {
+    const count = Math.max(0, Math.min(10000, Number(p[10]) || 0))
+    const next = new Map()
+    for (let i = 11, n = 0; n < count && i + 2 < p.length; n++, i += 5) {
+      const [defId, invId, color] = p.slice(i, i + 3)
+      if (/^\d+$/.test(String(defId)) && /^\d+$/.test(String(invId))) {
+        next.set(String(invId), { defId: Number(defId), color: Number(color) >>> 0 })
+      }
+    }
+    ownClothingSlots.clear()
+    for (const [slot, item] of next) ownClothingSlots.set(slot, item)
+    return
+  }
+
+  if (kind === 2) {
+    const added = Math.max(0, Math.min(10000, Number(p[9]) || 0))
+    const removed = Math.max(0, Math.min(10000, Number(p[10]) || 0))
+    const color = Number(p[8]) >>> 0
+    let i = 11
+    for (let n = 0; n < added && i + 1 < p.length; n++, i += 2) {
+      const slot = String(p[i]), rawDefId = String(p[i + 1])
+      if (/^\d+$/.test(slot) && /^\d+$/.test(rawDefId)) ownClothingSlots.set(slot, { defId: Number(rawDefId), color })
+    }
+    for (let n = 0; n < removed && i < p.length; n++, i++) ownClothingSlots.delete(String(p[i]))
+  }
+}
+
+function loadSavedOwnClothingInventory () {
+  try {
+    const file = path.join(info.dataDir, 'plugin-data', 'inventory-worth-capture', 'inventory.json')
+    const saved = JSON.parse(require('fs').readFileSync(file, 'utf8'))
+    for (const item of saved.items || []) ownClothingSlots.set(String(item.invId), { defId: Number(item.defId), color: Number(item.color) >>> 0 })
+  } catch (_) {}
+}
+loadSavedOwnClothingInventory()
+engine.dispatch.onMessage({ type: 'aj', message: 'il', callback: ({ message }) => rememberOwnClothingInventory(message) })
+
 function parseTradeRequest (parts) {
   const obj = parts.slice(2) // obj[0] = 'ti'
   let i = 7
@@ -266,25 +365,204 @@ function parseTradeRequest (parts) {
 }
 function itemName (it) {
   if (it.kind === 'pet') return 'Pet'
+  if (it.kind === 'other') return `Trade item type ${it.type}`
+  if (it.kind === 'clothing' && it.id == null) return `Clothing item · slot ${it.slot}`
   const n = engine.items.name(it.id, it.kind)
   return n || `${it.kind === 'den' ? 'Den item' : 'Item'} #${it.id}`
 }
+function tradeRows (it) {
+  if (!it || it.kind === 'pet' || it.kind === 'other' || it.id == null) return []
+  if (it.kind !== 'clothing') return worthTools.rowsFor(worthByName, itemName(it), null)
+  const definition = engine.items.getClothing(it.id)
+  const item = definition ? { ...definition, id: Number(it.id) } : { id: Number(it.id), name: itemName(it) }
+  return worthTools.rowsForGameItem(worthByName, item, it.color, engine.items.layerColors && engine.items.layerColors.bind(engine.items))
+}
+function tradeColor (it, matches = []) {
+  if (it.kind !== 'clothing') return null
+  const labels = [...new Set(matches.filter(row => row._wikiColorMatch).map(row => row.variant).filter(Boolean))]
+  return labels.length === 1 ? { label: labels[0] } : null
+}
+
+function tradeMineItems () {
+  return [...trade.mine.values()].map(({ type, slot, requested }) => withRequested(requested, (() => {
+    if (type === 0) {
+      const item = ownClothingSlots.get(String(slot))
+      return item
+        ? { kind: 'clothing', id: item.defId, color: item.color, slot }
+        : { kind: 'clothing', id: null, color: null, slot }
+    }
+    if (type === 1) {
+      const item = ownDenSlots.get(String(slot))
+      return item ? { kind: 'den', id: item.defId, slot } : { kind: 'other', type, slot }
+    }
+    if (type === 3) return { kind: 'pet', slot }
+    return { kind: 'other', type, slot }
+  })()))
+}
+function withRequested (requested, item) { if (requested) item.requested = true; return item }
+
+function addTradeListItems (box, items) {
+  box.innerHTML = ''
+  if (!items.length) { box.appendChild(el('div', 'state', 'Nothing yet')); return }
+  const counts = new Map()
+  for (const item of items) {
+    const key = `${item.kind}:${item.id == null ? item.slot ?? item.type : item.id}:${Number(item.color) >>> 0}`
+    const group = counts.get(key) || { item, count: 0 }
+    group.count++
+    counts.set(key, group)
+  }
+  for (const { item, count } of counts.values()) {
+    const name = itemName(item)
+    const row = el('div', 'titem')
+    const detail = el('div', 'trade-worth')
+    const matches = tradeRows(item)
+    const color = tradeColor(item, matches)
+    const image = worthTools.imageForRows(matches)
+    if (image) {
+      const picture = el('img', 'trade-img')
+      picture.src = image; picture.alt = name; picture.loading = 'lazy'
+      picture.onerror = () => picture.remove()
+      row.appendChild(picture)
+    }
+    detail.append(el('span', 'trade-name', `${name}${color ? ` · ${color.label}` : ''}`))
+    const value = item.kind === 'pet'
+      ? 'Pet values are not matched yet'
+      : item.kind === 'other'
+        ? 'Item type is not mapped yet'
+        : item.kind === 'clothing' && item.id == null
+          ? 'Waiting for your inventory data'
+          : worthTools.valueForRows(matches)
+    detail.append(el('span', 'trade-value', value))
+    const dia = diamondsFor(item)
+    if (dia) detail.append(el('span', 'trade-dia', formatDiamonds({ min: dia.min * count, max: dia.max * count })))
+    if (item.requested) detail.append(el('span', 'trade-tag', 'They asked for this'))
+    row.append(detail, el('span', 'n', `×${count}`))
+    box.appendChild(row)
+  }
+}
+
+/** An item's worth in Diamonds (a range), using the wiki's own exchange rates. */
+function diamondsFor (item) {
+  if (!item || item.kind === 'pet' || item.kind === 'other' || item.id == null) return null
+  const rows = tradeRows(item)
+  const ranges = rows.map(row => valueTools.inDiamonds(row.raw || '', worthRates)).filter(Boolean)
+  if (!ranges.length) return null
+  const min = Math.min(...ranges.map(r => r.min))
+  const max = Math.max(...ranges.map(r => r.max))
+  // Too many different matches means JR isn't sure which one is yours.
+  if (ranges.length > 1 && max > min * 3) return null
+  return { min, max }
+}
+const blRate = () => worthRates.get('black long collar') || 425
+function formatDiamonds (r) {
+  const round = (n) => (n >= 100 ? Math.round(n / 5) * 5 : Math.round(n))
+  const d = r.min === r.max || round(r.min) === round(r.max) ? `${round(r.min)}` : `${round(r.min)}–${round(r.max)}`
+  const bl = ((r.min + r.max) / 2) / blRate()
+  return `≈ ${d} Diamonds${bl >= 0.25 ? ` · ${bl >= 10 ? Math.round(bl) : Math.round(bl * 10) / 10} BL` : ''}`
+}
+
+function numericTradeValues (item) {
+  if (!item || item.kind === 'pet' || item.kind === 'other' || item.id == null) return null
+  const matches = tradeRows(item)
+  if (worthTools.valueForRows(matches) === 'No exact wiki value') return null
+  const choices = new Map()
+  for (const row of matches) {
+    for (const offer of row.offers || []) {
+      if (!Number.isFinite(offer.min) || !Number.isFinite(offer.max) || !offer.unit || offer.knownUnit !== true || offer.atLeast || offer.bundle) continue
+      if (!choices.has(offer.unit)) choices.set(offer.unit, new Map())
+      choices.get(offer.unit).set(`${offer.min}:${offer.max}`, { min: offer.min, max: offer.max })
+    }
+  }
+  const values = new Map()
+  for (const [unit, ranges] of choices) if (ranges.size === 1) values.set(unit, [...ranges.values()][0])
+  return values.size ? values : null
+}
+
+function assessTrade () {
+  const mine = tradeMineItems()
+  if (!trade.offered.length) return { kind: 'neutral', title: 'Nothing offered yet', detail: 'The other player hasn\u2019t offered any items.' }
+  if (!mine.length) return { kind: 'neutral', title: 'Waiting for your side', detail: 'JR couldn\u2019t tell which of your items they asked for.' }
+  if (mine.some(item => item.kind === 'clothing' && item.id == null)) return { kind: 'neutral', title: 'Waiting for inventory data', detail: 'Open your inventory in Animal Jam once so JR can see which item they asked for.' }
+
+  const side = (items) => {
+    let min = 0; let max = 0; const unknown = []
+    for (const item of items) {
+      const d = diamondsFor(item)
+      if (d) { min += d.min; max += d.max } else unknown.push(itemName(item))
+    }
+    return { min, max, unknown }
+  }
+  const theirs = side(trade.offered)
+  const yours = side(mine)
+  if (!theirs.max || !yours.max) {
+    const missing = [...theirs.unknown, ...yours.unknown]
+    return { kind: 'neutral', title: 'Can\u2019t judge this trade yet', detail: `No wiki value JR can use for: ${missing.join(', ')}.` }
+  }
+  const t = (theirs.min + theirs.max) / 2
+  const y = (yours.min + yours.max) / 2
+  const ratio = t / y
+  const kind = ratio >= 1.1 ? 'gain' : ratio <= 0.9 ? 'loss' : 'fair'
+  const pct = Math.round(Math.abs(ratio - 1) * 100)
+  const title = kind === 'gain' ? `In your favor (+${pct}%)` : kind === 'loss' ? `In their favor (−${Math.round((1 - ratio) * 100)}%)` : 'About even'
+  let detail = `They offer ${formatDiamonds(theirs)}. You give ${formatDiamonds(yours)}.`
+  const missing = [...theirs.unknown, ...yours.unknown]
+  if (missing.length) detail += ` Not counted (no wiki value): ${missing.join(', ')}.`
+  return { kind, title, detail, theirs: t, yours: y }
+}
+
+function renderTradeAssessment () {
+  const { kind, title, detail, theirs, yours } = assessTrade()
+  const box = $('tradeAssessment')
+  box.className = `trade-assessment ${kind}`
+  box.innerHTML = ''
+  box.append(el('strong', 'assessment-label', title), el('span', 'assessment-detail', detail))
+  // Favor scale: the marker leans toward whoever comes out ahead.
+  const scale = el('div', 'trade-scale')
+  const track = el('div', 'scale-track')
+  const marker = el('div', 'scale-marker')
+  const share = theirs && yours ? theirs / (theirs + yours) : 0.5
+  marker.style.left = `${Math.max(3, Math.min(97, share * 100))}%`
+  if (!theirs || !yours) scale.classList.add('unknown')
+  track.append(el('div', 'scale-mid'), marker)
+  scale.append(el('span', 'scale-end', 'Their favor'), track, el('span', 'scale-end', 'Your favor'))
+  box.append(scale)
+}
+
+function parseTradeListUpdate (parts) {
+  // Outgoing XT packets are %xt%o%ts%<room>%<removed count>...; the
+  // leading room field is why the trade-list counts start at index 5.
+  if (!trade.active || !Array.isArray(parts) || parts[2] !== 'o' || parts[3] !== 'ts' || parts.length < 6) return
+  let i = 5
+  const removed = Math.max(0, Math.min(1000, Number(parts[i++]) || 0))
+  for (let n = 0; n < removed && i + 1 < parts.length; n++, i += 2) {
+    const type = Number(parts[i]), slot = String(parts[i + 1])
+    if (Number.isInteger(type) && /^\d+$/.test(slot)) trade.mine.delete(`${type}:${slot}`)
+  }
+  const added = Math.max(0, Math.min(1000, Number(parts[i++]) || 0))
+  for (let n = 0; n < added && i + 1 < parts.length; n++, i += 2) {
+    const type = Number(parts[i]), slot = String(parts[i + 1])
+    if (!Number.isInteger(type) || !/^\d+$/.test(slot)) continue
+    trade.mine.set(`${type}:${slot}`, { type, slot })
+  }
+  renderTrade()
+}
+
 function renderTrade () {
   $('tradeEmpty').classList.toggle('hidden', trade.active)
   $('trade').classList.toggle('hidden', !trade.active)
   if (!trade.active) return
   $('tradeTheirsLabel').textContent = `${engine.application.streamingMode.mask(trade.user || 'They').toUpperCase()} OFFERS`
-  const box = $('tradeTheirs')
-  box.innerHTML = ''
-  if (!trade.offered.length) box.appendChild(el('div', 'state', 'Nothing yet'))
-  const counts = new Map()
-  for (const it of trade.offered) { const n = itemName(it); counts.set(n, (counts.get(n) || 0) + 1) }
-  for (const [n, c] of counts) { const row = el('div', 'titem'); row.append(el('span', null, n), el('span', 'n', '×' + c)); box.appendChild(row) }
+  addTradeListItems($('tradeTheirs'), trade.offered)
   const what = ['a clothing item', 'a clothing item', 'a clothing item', 'a den item', 'a den item', 'a den item', 'a pet'][trade.wantsType] || 'one of your items'
-  $('tradeMine').innerHTML = ''
-  $('tradeMine').appendChild(el('div', 'titem', `They want ${what}`))
-  $('tradeNote').textContent = trade.status || 'Values from the Item Worth Wiki will show here in a JR update.'
+  const mine = $('tradeMine')
+  mine.innerHTML = ''
+  const mineItems = tradeMineItems()
+  if (!mineItems.length) mine.appendChild(el('div', 'trade-request', `They asked for ${what}.`))
+  if (mineItems.length) addTradeListItems(mine, mineItems)
+  renderTradeAssessment()
+  $('tradeNote').textContent = trade.status || 'Listed values from the Animal Jam Item Worth Wiki (CC BY-SA). Comparisons use shared numeric units; estimates are not guarantees.'
 }
+engine.events.on('items', () => { if (trade.active) renderTrade() })
 engine.dispatch.onMessage({
   type: 'aj',
   message: 'ti',
@@ -292,7 +570,12 @@ engine.dispatch.onMessage({
     const parts = message.value
     const code = Number(parts[4])
     if (code === 0) {
-      Object.assign(trade, { active: true, status: '' }, parseTradeRequest(parts))
+      Object.assign(trade, { active: true, status: '', mine: new Map() }, parseTradeRequest(parts))
+      // The request names the item of yours they want: type and inventory slot.
+      const wantType = Number(parts[7])
+      const wantSlot = String(parts[8] || '')
+      const tradeType = wantType < 3 ? 0 : wantType < 6 ? 1 : 3
+      if (/^\d+$/.test(wantSlot)) trade.mine.set(`${tradeType}:${wantSlot}`, { type: tradeType, slot: wantSlot, requested: true })
       engine.log({ type: 'notify', message: `Trade request from ${engine.application.streamingMode.mask(trade.user)} (${trade.offered.length} items).` })
       if (engine.settings.tradeHelper) go('trading')
     } else if (code === 1 && Number(parts[5]) !== 0) {
@@ -304,6 +587,7 @@ engine.dispatch.onMessage({
     renderTrade()
   }
 })
+engine.dispatch.onMessage({ type: 'connection', message: 'ts', callback: ({ message }) => parseTradeListUpdate(message.value) })
 const tradeSwitch = $('tradeAuto')
 const syncTradeSwitch = () => tradeSwitch.classList.toggle('on', !!engine.settings.tradeHelper)
 tradeSwitch.onclick = () => { engine.updateSettings({ tradeHelper: !engine.settings.tradeHelper }); syncTradeSwitch() }
@@ -396,6 +680,7 @@ function renderSettings () {
     rows.forEach(r => b.appendChild(r))
     g.appendChild(b)
     box.appendChild(g)
+    return g
   }
   const row = (title, sub, control) => {
     const r = el('div', 'srow')
@@ -415,6 +700,33 @@ function renderSettings () {
   const value = (text) => el('span', 'value', text)
   const button = (label, fn) => { const b = el('button', 'btn small', label); b.onclick = attempt(fn); return b }
 
+  const select = (key, options, after) => {
+    const sel = el('select', 'sselect')
+    for (const [v, label] of options) { const o = el('option', null, label); o.value = v; if (s[key] === v) o.selected = true; sel.appendChild(o) }
+    sel.onchange = () => { engine.updateSettings({ [key]: sel.value }); if (after) after() }
+    return sel
+  }
+  const swatches = () => {
+    const box = el('div', 'swatches')
+    for (const t of themes.THEMES) {
+      const v = themes.variables(t.id)
+      const b = el('button', 'swatch' + (s.theme === t.id ? ' on' : ''))
+      b.title = t.name
+      b.style.setProperty('--sw-bg', v['--panel-2'])
+      b.style.setProperty('--sw-line', v['--line-3'])
+      b.style.setProperty('--sw-accent', t.accent)
+      b.append(el('span', 'swatch-dot'), el('span', 'swatch-name', t.name))
+      b.onclick = () => { engine.updateSettings({ theme: t.id }); themes.applyTheme(document, t.id); renderSettings() }
+      box.appendChild(b)
+    }
+    return box
+  }
+  const greeting = el('input', 'stext')
+  greeting.placeholder = 'What do you want to do?'
+  greeting.maxLength = 60
+  greeting.value = s.homeGreeting || ''
+  greeting.oninput = () => { engine.updateSettings({ homeGreeting: greeting.value }); renderHome() }
+
   const rate = el('input')
   rate.type = 'number'; rate.min = 1; rate.max = 100; rate.value = s.packetsPerSecond
   rate.onchange = () => engine.updateSettings({ packetsPerSecond: Math.max(1, Math.min(100, Number(rate.value) || 20)) })
@@ -425,7 +737,19 @@ function renderSettings () {
     row('Open Trading when a trade starts', 'Shows what the other player is offering.', toggle('tradeHelper', syncTradeSwitch)),
     row('Packet limit', 'Most packets plugins can send each second. Higher can get you kicked.', rate)
   ])
+  const homeGroup = group('HOME SCREEN', [
+    row('Theme', 'Colors for JR and its plugin windows.', null),
+    swatches(),
+    row('Greeting', 'The heading on Home. Use {name} for this profile\u2019s name.', greeting),
+    row('Background', null, select('homeBackground', [['none', 'Plain'], ['glow', 'Glow'], ['grid', 'Grid'], ['dots', 'Dots']], renderHome)),
+    row('Search bar', null, toggle('homeShowSearch', renderHome)),
+    row('Play button', null, toggle('homeShowPlay', renderHome)),
+    row('Pinned plugins', null, toggle('homeShowPins', renderHome)),
+    row('Activity bar', 'The latest log line at the bottom of Home.', toggle('homeShowTicker', renderHome))
+  ])
+  homeGroup.id = 'homeSettings'
   group('GAME', [
+    row('Anti-kick', 'Stops Animal Jam from logging you out for being idle. Sends a keep-alive every 30 seconds. Turning it on or off takes effect the next time you open the game.', toggle('antiKick')),
     row('Game server', engine.dispatch.connected ? 'Connected now.' : 'Shows after you log in.', value(engine.gameServer.session ? engine.gameServer.session.upstream.host : '—')),
     row('Game proxy', 'The local port the game connects to.', value(`127.0.0.1:${engine.proxy.port}`)),
     row('Secure connection to Animal Jam', 'Keep this on unless support asks you to change it.', toggle('secureUpstream')),
@@ -437,6 +761,12 @@ function renderSettings () {
   ])
   const g = info.gate || {}
   group('DISCORD', [
+    row('Show JR on my Discord profile', 'Rich Presence, with a button to join the JR Discord. Needs the Discord app open on this computer.', (() => {
+      const b = el('button', 'switch' + (info.richPresence !== false ? ' on' : ''))
+      b.setAttribute('role', 'switch')
+      b.onclick = attempt(async () => { info.richPresence = await ipcRenderer.invoke('presence:enabled', info.richPresence === false) ; b.classList.toggle('on', info.richPresence !== false) })
+      return b
+    })()),
     row(g.disabled ? 'Discord check is off' : g.user ? `Signed in as ${g.user.globalName || g.user.username}` : 'Signed in', 'JR is for members of the JR Discord server.', button('JR Discord', () => ipcRenderer.invoke('open-url', info.invite)))
   ])
   group('ABOUT', [

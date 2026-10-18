@@ -14,6 +14,7 @@ const { pathToFileURL } = require('url')
 
 module.exports = function createEngine (info) {
   const req = (p) => require(path.join(info.root, 'src', p))
+  const themes = req('ui/themes.js')
   const { Dispatch } = req('engine/dispatch.js')
   const { Proxy } = req('engine/proxy.js')
   const { GameServer } = req('game/server.js')
@@ -36,7 +37,15 @@ module.exports = function createEngine (info) {
     openGameOnStart: false,
     tradeHelper: true,
     pinned: ['packet-inspector', 'glow-picker', 'room-browser', 'item-previewer'],
-    lastRoomName: null
+    lastRoomName: null,
+    antiKick: false,
+    theme: 'midnight',
+    homeGreeting: '',
+    homeBackground: 'none',
+    homeShowSearch: true,
+    homeShowPlay: true,
+    homeShowPins: true,
+    homeShowTicker: true
   }
   let settings = { ...DEFAULTS, ...readJson(settingsFile, {}) }
   const saveSettings = () => writeJson(settingsFile, settings)
@@ -68,6 +77,8 @@ module.exports = function createEngine (info) {
   const dispatch = new Dispatch({ packetsPerSecond: settings.packetsPerSecond, log })
   const gameServer = new GameServer({
     proxyPort: () => proxy.port,
+    // Anti-kick: the game file is prepared without its own idle logout.
+    clientOptions: () => ({ antiIdle: !!settings.antiKick }),
     cacheDir: path.join(info.cacheDir, 'client'),
     log
   })
@@ -97,6 +108,16 @@ module.exports = function createEngine (info) {
       }
     }
   })
+
+  // Anti-kick: tell the server you're still here every 30 seconds.
+  const KEEP_ALIVE_EVERY = 30000
+  const keepAlive = setInterval(() => {
+    if (!settings.antiKick || !dispatch.connected) return
+    const room = dispatch.getState('room')
+    if (!room) return
+    dispatch.sendRemoteMessage(`%xt%o%ka%${room}%`).catch(() => {})
+  }, KEEP_ALIVE_EVERY)
+  if (keepAlive.unref) keepAlive.unref()
 
   let serverName = null
   gameServer.on('session', (s) => { serverName = s.server; events.emit('status') })
@@ -198,6 +219,7 @@ module.exports = function createEngine (info) {
       try {
         if (!popup.jam) popup.jam = jam
         const doc = popup.document
+        if (doc && doc.documentElement && doc.documentElement.dataset.theme !== settings.theme) themes.applyTheme(doc, settings.theme)
         if (doc && doc.head && !doc.getElementById('jr-style')) {
           const link = doc.createElement('link')
           link.id = 'jr-style'
@@ -268,7 +290,10 @@ module.exports = function createEngine (info) {
     const waiting = list.filter(p => p.status === 'needs-approval' || p.status === 'changed').length
     log({ type: 'notify', message: `Loaded ${list.length} plugins${waiting ? ` (${waiting} waiting for your OK)` : ''}.` })
     const loadItems = () => items.load()
-      .then(() => log({ type: 'success', message: `Item names ready (${items.clothing.size + items.den.size} items, game version ${items.deployVersion}).` }))
+      .then(() => {
+        log({ type: 'success', message: `Item names ready (${items.clothing.size + items.den.size} items, game version ${items.deployVersion}).` })
+        events.emit('items')
+      })
       .catch((e) => log({ type: 'warn', message: `Item names didn't load: ${e.message}` }))
     loadItems()
     // Try again once the game has logged in (then JR knows the exact game version).
@@ -277,6 +302,7 @@ module.exports = function createEngine (info) {
   }
 
   async function shutdown () {
+    clearInterval(keepAlive)
     closePluginWindows()
     host.unloadAll()
     stopGame()
@@ -295,6 +321,9 @@ module.exports = function createEngine (info) {
     settings = { ...settings, ...patch }
     saveSettings()
     if ('packetsPerSecond' in patch) dispatch.limiter.setRate(settings.packetsPerSecond)
+    if ('theme' in patch) {
+      for (const { popup } of windows.values()) { try { themes.applyTheme(popup.document, settings.theme) } catch (_) {} }
+    }
     events.emit('settings')
   }
 
