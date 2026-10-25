@@ -1,4 +1,6 @@
-// Bitter Sweets and Meet Cosmo are in their folders but switched off for now.
+// Meet Cosmo and The Forgotten Desert are in their folders but switched off for now.
 module.exports = [
-  require('./phantoms')
+  require('./phantoms'),
+  require('./bittersweets'),
+  require('./tiki')
 ];

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bulk Buy</title>
+  <style>
+    :root {
+      --bg: #0b0b0c; --panel: #111113; --line: #1f1f22; --line2: #2f2f34; --line3: #45454b;
+      --text: #ededee; --dim: #a6a6ac; --faint: #6c6c72; --good: #4ade80; --bad: #f87171;
+      --mono: ui-monospace, "JetBrains Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    h1 { font-size: 16px; font-weight: 650; margin: 0; }
+    .sub { color: var(--faint); font-size: 12px; margin-top: 3px; line-height: 1.5; }
+    .card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 14px; }
+    .what { font-size: 15px; font-weight: 650; }
+    .meta { color: var(--faint); font-size: 12px; margin-top: 2px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .sp { flex: 1; }
+    input { background: var(--bg); color: var(--text); border: 1px solid var(--line2); border-radius: 9px; font: inherit; height: 34px; padding: 0 10px; outline: none; width: 90px; font-family: var(--mono); }
+    input:focus { border-color: #5a5a60; }
+    label { color: var(--dim); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    button { height: 34px; padding: 0 16px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: var(--text); border: 1px solid var(--line2); white-space: nowrap; }
+    button.primary { background: #f4f4f5; color: #0b0b0c; border: 0; }
+    button.danger { color: var(--bad); }
+    button:disabled { opacity: .4; cursor: default; }
+    .bar { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 10px; }
+    .bar i { display: block; height: 100%; width: 0; background: var(--text); transition: width .2s; }
+    #status { font-size: 12px; color: var(--faint); min-height: 18px; }
+    #status.error { color: var(--bad); }
+    #status.ok { color: var(--good); }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Bulk Buy</h1>
+    <div class="sub">Buy one of something in Animal Jam, in the color you want, with this window open. JR can then buy more of exactly that. To change the color, buy one in the new color in the game.</div>
+  </div>
+  <div class="card">
+    <div class="what" id="what">Nothing yet</div>
+    <div class="meta" id="meta">Buy an item in the game and it shows up here.</div>
+    <div class="row" style="margin-top:12px">
+      <label>How many more <input id="count" type="number" min="1" max="100" value="5"></label>
+      <span class="meta" id="cost"></span>
+      <span class="sp"></span>
+      <button id="stop" style="display:none">Stop</button>
+      <button id="buy" class="primary" disabled>Buy</button>
+    </div>
+    <div class="bar" id="barWrap" style="display:none"><i id="bar"></i></div>
+  </div>
+  <div id="status"></div>
+  <script>
+    (async () => {
+      const $ = (id) => document.getElementById(id)
+      const setStatus = (text, kind) => { $('status').textContent = text || ''; $('status').className = kind || '' }
+      const jam = window.jam || await new Promise(resolve => {
+        const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 25)
+      })
+      const path = require('path')
+      const { BulkBuyer, MAX } = require(path.join(__dirname, 'bulk.js'))
+      const items = jam.application && jam.application.items
+      const store = jam.storage
+      const def = (p) => { try { return (p.kind === 'den' ? items.getDenItem(p.defId) : items.getClothing(p.defId)) || null } catch (_) { return null } }
+      let confirming = false
+
+      $('count').max = MAX
+      $('count').value = store.get('count', 5)
+      $('count').oninput = () => { store.set('count', Number($('count').value) || 5); confirming = false; render() }
+
+      function render () {
+        const p = buyer.last
+        const run = buyer.run
+        const d = p && def(p)
+        $('what').textContent = p ? (d && d.name) || `Item #${p.defId}` : 'Nothing yet'
+        $('meta').textContent = p ? `${p.kind === 'den' ? 'Den item' : 'Clothing'} · the same color you just bought` : 'Buy an item in the game and it shows up here.'
+        const n = Math.max(1, Math.min(MAX, Math.floor(Number($('count').value) || 1)))
+        const unit = d && d.cost ? d.cost : 0
+        const cur = d && d.currency === 'diamonds' ? 'Diamonds' : 'Gems'
+        $('cost').textContent = p && unit ? `about ${(unit * n).toLocaleString()} ${cur} (store price)` : ''
+        $('buy').disabled = !p || !!run
+        $('buy').textContent = confirming ? `Press again to buy ${n}` : `Buy ${n} more`
+        $('buy').classList.toggle('danger', confirming)
+        $('stop').style.display = run ? '' : 'none'
+        $('barWrap').style.display = run ? '' : 'none'
+        if (run) $('bar').style.width = `${Math.round(run.done / run.total * 100)}%`
+        $('count').disabled = !!run
+      }
+      const buyer = new BulkBuyer({ dispatch: jam.dispatch, onChange: render })
+
+      $('buy').onclick = async () => {
+        if (!confirming) { confirming = true; render(); setTimeout(() => { if (confirming) { confirming = false; render() } }, 4000); return }
+        confirming = false
+        setStatus('Buying…')
+        try {
+          const r = await buyer.buy($('count').value)
+          const left = r.balance != null ? ` You have ${Number(r.balance).toLocaleString()} left.` : ''
+          if (r.refused) setStatus(`Bought ${r.done}, then the game said no (probably not enough to pay, or your inventory is full).${left}`, 'error')
+          else setStatus(`${r.stopped ? 'Stopped. ' : ''}Bought ${r.done}.${left}`, 'ok')
+        } catch (error) { setStatus(error.message, 'error') }
+        render()
+      }
+      $('stop').onclick = () => buyer.stop()
+      window.addEventListener('beforeunload', () => buyer.dispose())
+      render()
+    })().catch((error) => {
+      const status = document.getElementById('status')
+      status.textContent = "Bulk Buy couldn't start: " + error.message
+      status.className = 'error'
+    })
+  </script>
+</body>
+</html>

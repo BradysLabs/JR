@@ -2,7 +2,7 @@
 
 JR is a plugin toolkit for Animal Jam Classic, made by **BradysLabs**. It replaces Jam Reborn.
 
-JR is for members of the [JR Discord](https://discord.gg/UvXzA2gK5W). You sign in with Discord the first time you open it.
+JR is for members of the [JR Discord](https://discord.gg/ENu6SpVrwn). You sign in with Discord the first time you open it.
 
 ## Install
 
@@ -11,9 +11,12 @@ Download `JR-Setup-<version>.exe` from [Releases](https://github.com/BradysLabs/
 ## What JR does
 
 - **Profiles:** each profile opens in its own window with its own settings and login, so you can play two accounts at once.
-- **Plugins:** packet tools, adventures, room browser, item previews, glow picker and more. Plugins written for Jam Reborn keep working. See [docs/plugins.md](docs/plugins.md).
+- **Plugins:** packet tools, adventures (Phantoms, Bitter Sweets, Tiki Trouble), room browser, item previews, glow picker and more. Plugins written for Jam Reborn keep working. See [docs/plugins.md](docs/plugins.md).
 - **Trading:** shows what the other player offers, values from the Item Worth Wiki in Diamonds, and a favor scale.
-- **My Shop Templates:** save your shop and refill it in one click or automatically.
+- **My Shop:** save your shop as a template and refill it in one click or automatically, with wiki prices and a log of every sale.
+- **Shop Explorer:** see everything for sale in every My Shop in a den, with wiki values, so deals stand out.
+- **Recycle Tool:** recycle the items you don't want in one click, or automatically while you farm.
+- **Outfits, Bulk Buy, Recent Rooms and Auto Advertise:** save and swap outfits, buy many of one item, jump back to rooms you visited, and advertise your shop on a timer.
 - **Themes:** customize the home screen and pick a color theme.
 - **Anti-kick:** optional, keeps you from being logged out for being idle.
 - **Discord status:** shows JR on your Discord profile, with a link to the JR server.
@@ -32,6 +35,8 @@ npm start        run JR
 npm test         run the tests
 npm run build    build the Windows installer into dist/
 ```
+
+Discord Rich Presence uses the `discord-presence` art asset. Upload `assets/discord-presence.png` in the Discord Developer Portal under **Rich Presence → Art Assets** with the asset key `discord-presence` (the filename without its extension). The app icon on **General Information** is separate from Rich Presence art.
 
 ## License
 

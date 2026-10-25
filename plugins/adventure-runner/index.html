@@ -85,6 +85,10 @@
     }
 
     .ar-mode button.active { background: #3b82f6; color: #fff; }
+    .ar-choices { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12px; margin: 8px 0 0; }
+    .ar-choices:empty { display: none; }
+    .ar-choices .ar-choices-label { opacity: .7; margin-right: 2px; }
+    .ar-choices label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
     .ar-mode button:disabled { cursor: default; }
 
     .ar-btn {
@@ -243,6 +247,7 @@
         <button id="hereButton" class="ar-btn ar-here" title="Run the objectives in the adventure you're already in"><i class="fas fa-play"></i> Run here</button>
         <button id="stopButton" class="ar-btn ar-stop" disabled><i class="fas fa-stop"></i> Stop</button>
       </div>
+      <div id="choices" class="ar-choices"></div>
 
       <div class="ar-options">
         <label class="ar-option">

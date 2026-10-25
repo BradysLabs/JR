@@ -1,0 +1,9 @@
+{
+  "name": "Recycle Tool",
+  "description": "Save presets of items to recycle, then recycle them all with one click, or automatically as they arrive while you farm.",
+  "category": "Tools",
+  "icon": "fa-recycle",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

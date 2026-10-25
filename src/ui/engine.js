@@ -15,6 +15,7 @@ const { pathToFileURL } = require('url')
 module.exports = function createEngine (info) {
   const req = (p) => require(path.join(info.root, 'src', p))
   const themes = req('ui/themes.js')
+  const { cleanError } = req('ui/qol.js')
   const { Dispatch } = req('engine/dispatch.js')
   const { Proxy } = req('engine/proxy.js')
   const { GameServer } = req('game/server.js')
@@ -45,7 +46,15 @@ module.exports = function createEngine (info) {
     homeShowSearch: true,
     homeShowPlay: true,
     homeShowPins: true,
-    homeShowTicker: true
+    homeShowTicker: true,
+    // Quality of life (0.1.0)
+    netHide: '',
+    cmdHistory: [],
+    reopenPlugins: true,
+    openPlugins: [],
+    notifications: true,
+    zoom: 1,
+    lastSeenVersion: null
   }
   let settings = { ...DEFAULTS, ...readJson(settingsFile, {}) }
   const saveSettings = () => writeJson(settingsFile, settings)
@@ -123,8 +132,18 @@ module.exports = function createEngine (info) {
   gameServer.on('session', (s) => { serverName = s.server; events.emit('status') })
   dispatch.on('connected', () => events.emit('status'))
   dispatch.on('disconnected', () => events.emit('status'))
+  // Rooms you've been in since you logged in, newest first.
+  const recentRooms = []
   dispatch.on('state', (key, value) => {
-    if (key === 'roomName' && value) { settings.lastRoomName = value; saveSettings() }
+    if (key === 'roomName' && value) {
+      settings.lastRoomName = value; saveSettings()
+      const name = String(value)
+      const at = recentRooms.findIndex(r => r.name === name)
+      if (at !== -1) recentRooms.splice(at, 1)
+      recentRooms.unshift({ name, id: String(dispatch.getState('room') || ''), at: Date.now(), den: /^den./i.test(name) })
+      if (recentRooms.length > 30) recentRooms.length = 30
+    }
+    if (key === 'player') recentRooms.length = 0 // a new login
     events.emit('state', key, value)
   })
 
@@ -182,7 +201,18 @@ module.exports = function createEngine (info) {
         .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}/g, '[token]')
         .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[email]')
     },
-    open: (url) => events.emit('open-url', url)
+    open: (url) => events.emit('open-url', url),
+    /**
+     * Shows a desktop notification when JR isn't the window in front
+     * (or always, with force). The user can turn these off in Settings.
+     */
+    /** Rooms you've been in since logging in, newest first: [{ name, id, at, den }]. */
+    recentRooms: () => recentRooms.map(r => ({ ...r })),
+    notify: ({ title = 'JR', body = '', force = false } = {}) => {
+      if (!settings.notifications) return false
+      events.emit('notify', { title: String(title), body: String(body), force: !!force })
+      return true
+    }
   }
 
   /* ------------------------------------------------------------- plugins */
@@ -198,10 +228,41 @@ module.exports = function createEngine (info) {
   host.on('change', () => events.emit('plugins'))
 
   const windows = new Map() // plugin id -> { popup, jam }
+  // The last error each plugin window hit, so its card can show it.
+  const pluginErrors = new Map()
+
+  /** Records an error from a plugin window and shows it in that window. */
+  function reportPluginError (id, message) {
+    const plugin = host.plugins.get(id)
+    const name = plugin && plugin.manifest ? plugin.manifest.name : id
+    if (pluginErrors.get(id) === message) return
+    pluginErrors.set(id, message)
+    log({ type: 'error', message: `${name}: ${message}` })
+    const open = windows.get(id)
+    if (open && !open.popup.closed) showErrorInWindow(open.popup, message)
+    events.emit('plugins')
+  }
+
+  function showErrorInWindow (popup, message) {
+    try {
+      const doc = popup.document
+      let bar = doc.getElementById('jr-error-bar')
+      if (!bar) {
+        bar = doc.createElement('div')
+        bar.id = 'jr-error-bar'
+        bar.title = 'Click to hide'
+        bar.style.cssText = 'position:fixed;left:10px;right:10px;bottom:10px;z-index:2147483647;background:#2a0f12;color:#fecaca;border:1px solid #5b2a2f;border-radius:10px;padding:9px 12px;font:12.5px/1.45 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5);cursor:pointer;word-break:break-word'
+        bar.onclick = () => bar.remove()
+        doc.body.appendChild(bar)
+      }
+      bar.textContent = `This plugin hit an error: ${message}`
+    } catch (_) {}
+  }
 
   function openPlugin (id) {
     const open = windows.get(id)
     if (open && !open.popup.closed) { open.popup.focus(); return }
+    pluginErrors.delete(id)
     const jamView = host.openWindow(id)
     const name = jamView.plugin.name
     const popup = window.open(pathToFileURL(jamView.entry).href, `jr-plugin-${id}`)
@@ -233,7 +294,8 @@ module.exports = function createEngine (info) {
     let tries = 0
     const early = setInterval(() => { attach(); if (++tries > 80) clearInterval(early) }, 25)
     try {
-      popup.addEventListener('error', (e) => log({ type: 'error', message: `${name}: ${e.message}` }))
+      // The main process also reports these from the window's console; reportPluginError skips repeats.
+      popup.addEventListener('error', (e) => reportPluginError(id, cleanError(e.message)))
     } catch (_) {}
     const watch = setInterval(() => {
       if (!popup.closed) return
@@ -299,10 +361,26 @@ module.exports = function createEngine (info) {
     // Try again once the game has logged in (then JR knows the exact game version).
     gameServer.once('session', () => { if (!items.ready) setTimeout(loadItems, 3000) })
     if (settings.openGameOnStart) play().catch(e => log({ type: 'error', message: e.message }))
+    reopenPlugins()
+  }
+
+  /** Opens the plugin windows that were open when this profile last closed. */
+  function reopenPlugins () {
+    if (!settings.reopenPlugins) return
+    const ids = Array.isArray(settings.openPlugins) ? settings.openPlugins : []
+    const ready = ids.filter(id => { const p = host.plugins.get(id); return p && p.status === 'ready' })
+    ready.forEach((id, i) => setTimeout(() => {
+      try { openPlugin(id) } catch (e) { log({ type: 'warn', message: `Couldn't reopen ${id}: ${e.message}` }) }
+    }, 300 + i * 150))
   }
 
   async function shutdown () {
     clearInterval(keepAlive)
+    // Remember which plugin windows were open, to open them again next time.
+    try {
+      settings.openPlugins = [...windows.keys()].filter(id => !windows.get(id).popup.closed)
+      saveSettings()
+    } catch (_) {}
     closePluginWindows()
     host.unloadAll()
     stopGame()
@@ -342,6 +420,10 @@ module.exports = function createEngine (info) {
     get serverName () { return serverName },
     get gameRunning () { return !!game },
     get openWindows () { return new Set([...windows.keys()].filter(id => !windows.get(id).popup.closed)) },
+    /** The open window of a plugin, or null. */
+    pluginWindow (id) { const w = windows.get(id); return w && !w.popup.closed ? w.popup : null },
+    pluginErrors,
+    reportPluginError,
     openPlugin,
     play,
     stopGame,

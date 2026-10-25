@@ -1,82 +1,153 @@
 'use strict'
+
+/* Inventory Worth, by BradysLabs: what your clothing and den items are worth. */
 ;(async function () {
-  const $ = id => document.getElementById(id)
-  const jam = await new Promise(resolve => { if (window.jam) return resolve(window.jam); const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 40) })
-  const items = jam.application.items
-  const root = require('path').resolve(__dirname, '..', '..')
+  const $ = (id) => document.getElementById(id)
+  const path = require('path')
   const fs = require('fs')
-  let worth = []
-  try { worth = JSON.parse(fs.readFileSync(require('path').join(root, 'data/worth/values.json'), 'utf8')).items || [] } catch (e) { $('status').textContent = `Couldn't load the bundled worth list: ${e.message}` }
-  const { normalize, indexWorth, rowsFor, rowsForGameItem, describeRow, valueForRows, imageForRows } = require(require('path').join(root, 'src', 'worth', 'match.js'))
-  const worthIndex = indexWorth(worth)
-  const key = 'inventory-worth-items-v1'
-  let owned = jam.storage.get(key, [])
-  const escape = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
-  function offers(row) { return row ? describeRow(row) : 'No parsed value' }
-  function updateLiveInventory() {
-    const file = require('path').join(jam.application.dataPath, 'plugin-data', 'inventory-worth-capture', 'inventory.json')
-    let data
-    try { data = JSON.parse(fs.readFileSync(file, 'utf8')) } catch (_) { $('liveStatus').textContent = 'Waiting for the game to send your clothing inventory. Open the clothing inventory in game.'; return }
-    if (!items.ready) { $('liveStatus').textContent = 'Inventory received; loading game item names…'; return }
-    const rows = (data.items || []).map(x => {
-      const definition = items.getClothing(x.defId)
-      const item = definition ? { ...definition, id: x.defId } : { id: x.defId, name: `Item #${x.defId}` }
-      const name = item.name
-      const matches = rowsForGameItem(worthIndex, item, x.color, items.layerColors && items.layerColors.bind(items))
-      const value = valueForRows(matches)
-      const resolvedColor = value !== 'No exact wiki value'
-      return { name, value, matches, resolvedColor, image: imageForRows(matches) }
-    })
-    const totals = new Map()
-    for (const entry of rows) {
-      const matches = entry.matches
-      if (!entry.resolvedColor || matches.length !== 1) continue
-      const row = matches.find(w => w.offers && w.offers.some(o => Number.isFinite(o.min) && Number.isFinite(o.max) && o.unit && !o.bundle))
-      const offer = row && row.offers.find(o => Number.isFinite(o.min) && Number.isFinite(o.max) && o.unit && !o.bundle)
-      if (offer) { const t=totals.get(offer.unit)||{min:0,max:0}; t.min+=offer.min;t.max+=offer.max;totals.set(offer.unit,t) }
+  const jam = window.jam || await new Promise(resolve => {
+    const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 40)
+  })
+  const items = jam.application.items
+  const root = path.resolve(__dirname, '..', '..')
+  const { createPricer } = require(path.join(root, 'src', 'worth', 'pricer.js'))
+  const escape = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+  let tab = 'all'
+  let pricer = null
+  let rows = []
+  let lastKey = ''
+
+  $('status').textContent = 'Loading item names and wiki values…'
+  if (!items.ready) {
+    try { await items.load() } catch (e) { $('status').textContent = `Item names aren't available yet: ${e.message}. Open the game, then reopen this window.`; return }
+  }
+  pricer = createPricer({ root, items })
+
+  /** Your inventory: live from the Inventory Reader, or its last saved copy. */
+  function inventory () {
+    const live = jam.dispatch.getState('jrInventory')
+    if (live && typeof live.get === 'function') return live.get()
+    try {
+      const file = path.join(jam.application.dataPath, 'plugin-data', 'inventory-worth-capture', 'inventory.json')
+      const saved = JSON.parse(fs.readFileSync(file, 'utf8'))
+      return { clothing: saved.items || [], den: saved.den || [], receivedAt: saved.receivedAt }
+    } catch (_) { return { clothing: [], den: [], receivedAt: null } }
+  }
+
+  /** Groups copies of the same item (and color) and values each group. */
+  function build (inv) {
+    const groups = new Map()
+    const add = (kind, defId, color) => {
+      const key = `${kind}:${defId}:${color == null ? '' : color}`
+      const g = groups.get(key)
+      if (g) { g.count++; return }
+      groups.set(key, { kind, id: defId, color, count: 1 })
     }
-    const summary = [...totals].map(([unit,v]) => `${v.min === v.max ? v.min : `${v.min}–${v.max}`} ${unit}`).join(' · ')
-    $('liveStatus').textContent = `${rows.length.toLocaleString()} clothing items read · updated ${new Date(data.receivedAt).toLocaleString()}`
-    $('liveTotal').textContent = `Estimated inventory value: ${summary || 'No exact numeric wiki values available'}.`
-    $('liveItems').innerHTML = rows.map(x => `<div class="row live-row"><img class="item-img" src="${escape(x.image)}" alt="${escape(x.name)}" loading="lazy" ${x.image ? '' : 'hidden'} onerror="this.hidden=true"><div class="name">${escape(x.name)}</div><div class="value">${escape(x.value)}</div></div>`).join('') || '<div class="muted">No clothing items in the saved inventory snapshot.</div>'
-  }
-  function renderOwned() {
-    $('owned').innerHTML = owned.length ? owned.map((x,i) => `<div class="row"><div><div class="name">${escape(x.name)}${x.variant ? ` · ${escape(x.variant)}` : ''}</div><div class="sub">${escape(x.kind)} #${x.gameId} · ${x.count} owned</div></div><div class="value">${escape(offers(x.wiki))}</div><button class="remove" data-remove="${i}">Remove</button></div>`).join('') : '<div class="muted">No items added yet.</div>'
-    const quantified = owned.reduce((n,x) => n + x.count, 0)
-    const priced = owned.filter(x => x.wiki && x.wiki.offers && x.wiki.offers.length).length
-    const totals = new Map()
-    for (const item of owned) {
-      const offer = (item.wiki && item.wiki.offers || []).find(o => Number.isFinite(o.min) && Number.isFinite(o.max) && o.unit && !o.bundle)
-      if (!offer) continue
-      const total = totals.get(offer.unit) || { min: 0, max: 0 }
-      total.min += offer.min * item.count; total.max += offer.max * item.count; totals.set(offer.unit, total)
+    for (const c of inv.clothing) add('clothing', c.defId, Number(c.color) >>> 0)
+    for (const d of inv.den) add('den', d.defId, null)
+    const out = []
+    for (const g of groups.values()) {
+      const v = pricer.value(g)
+      const name = v.name || `${g.kind === 'den' ? 'Den item' : 'Item'} #${g.id}`
+      const each = v.diamonds
+      out.push({
+        ...g,
+        name,
+        color: v.color,
+        text: v.text,
+        source: v.source,
+        image: v.image,
+        status: v.status,
+        store: v.store,
+        each,
+        total: each ? { min: each.min * g.count, max: each.max * g.count } : null
+      })
     }
-    const summary = [...totals].map(([unit,v]) => `${v.min === v.max ? v.min : `${v.min}–${v.max}`} ${unit}`).join(' · ')
-    $('total').textContent = `${quantified.toLocaleString()} items tracked · ${priced.toLocaleString()} matched. Rough subtotal by unit (first numeric offer per entry): ${summary || 'not enough numeric values to total'}. Different units are kept separate; alternatives and bundles are not combined.`
-    $('owned').querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { owned.splice(Number(b.dataset.remove),1); jam.storage.set(key,owned); renderOwned() })
+    return out
   }
-  function renderResults() {
-    if (!items.ready) { $('results').innerHTML='<div class="muted">Game item names are still loading. Open the game and try again.</div>'; return }
-    const q = normalize($('search').value), kind = $('kind').value
-    const db = kind === 'den' ? items.den : items.clothing
-    const matches = [...db.entries()].map(([id,x]) => ({id, ...x})).filter(x => !q || normalize(x.name).includes(q) || String(x.id) === q).slice(0,40)
-    $('results').innerHTML = matches.map(x => {
-      const variants = rowsFor(worthIndex, x.name, null)
-      const options = variants.map(w => `<option value="${escape(w.id)}">${escape(offers(w))}</option>`).join('')
-      return `<div class="row"><div><div class="name">${escape(x.name || `Item #${x.id}`)}</div><div class="sub">${kind} #${x.id}${variants.length ? ` · ${variants.length} wiki value match${variants.length === 1 ? '' : 'es'}` : ' · no value match in scraped wiki data'}</div></div><select data-wiki="${x.id}" ${variants.length ? '' : 'disabled'}>${options || '<option>No value match in scraped wiki data</option>'}</select><button data-add="${x.id}" ${variants.length ? '' : 'disabled'}>Add</button></div>`
-    }).join('') || '<div class="muted">No matching game items.</div>'
-    $('results').querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
-      const id=String(b.dataset.add), x=db.get(id), variants=rowsFor(worthIndex, x && x.name, null)
-      const selectedId=$('results').querySelector(`[data-wiki="${id}"]`).value
-      const wiki=variants.find(w=>w.id===selectedId) || null
-      const entry=owned.find(a=>a.kind===kind && a.gameId===id && a.wikiId===(wiki && wiki.id))
-      if (entry) entry.count++
-      else owned.push({kind,gameId:id,name:x && x.name || `Item #${id}`,variant:wiki && wiki.variant || null,count:1,wikiId:wiki && wiki.id || null,wiki:wiki || null})
-      jam.storage.set(key,owned); renderOwned()
-    })
+
+  const mid = (r) => (r ? (r.min + r.max) / 2 : -1)
+
+  function renderStats (all) {
+    const valued = all.filter(r => r.total)
+    const sum = valued.reduce((s, r) => ({ min: s.min + r.total.min, max: s.max + r.total.max }), { min: 0, max: 0 })
+    const copies = all.reduce((n, r) => n + r.count, 0)
+    const valuedCopies = valued.reduce((n, r) => n + r.count, 0)
+    if (valued.length) {
+      const text = pricer.format(sum)
+      const [d, bl] = text.split(' · ')
+      $('total').textContent = d.replace('≈ ', '≈ ')
+      $('totalSub').textContent = bl ? `${bl} (Black Long Collars)` : 'in Diamonds'
+    } else {
+      $('total').textContent = '—'
+      $('totalSub').textContent = all.length ? 'No wiki values found yet' : ' '
+    }
+    $('valued').textContent = `${valuedCopies.toLocaleString()} / ${copies.toLocaleString()}`
+    $('valuedSub').textContent = `${valued.length.toLocaleString()} different items`
+    const top = valued.slice().sort((a, b) => mid(b.each) - mid(a.each))[0]
+    $('top').textContent = top ? `${top.name}${top.color ? ` · ${top.color}` : ''}` : '—'
+    $('top').title = $('top').textContent
+    $('topSub').textContent = top ? pricer.format(top.each, { bl: false }) : ' '
   }
-  $('search').addEventListener('input',renderResults); $('kind').addEventListener('change',renderResults)
-  $('status').textContent = `${worth.length.toLocaleString()} wiki entries loaded · item names ${items.ready ? 'ready' : 'loading'}`
-  if (!items.ready) items.load().then(renderResults).catch(e=>{$('status').textContent=`Item names unavailable: ${e.message}`})
-  renderOwned(); renderResults(); updateLiveInventory(); setInterval(updateLiveInventory, 1500)
+
+  function renderList () {
+    const q = $('search').value.trim().toLowerCase()
+    const valuedOnly = $('valuedOnly').checked
+    const sort = $('sort').value
+    let shown = rows
+      .filter(r => tab === 'all' || r.kind === tab)
+      .filter(r => !valuedOnly || r.total || r.store)
+      .filter(r => !q || `${r.name} ${r.color || ''}`.toLowerCase().includes(q))
+    shown = shown.slice().sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name)
+      : sort === 'count' ? b.count - a.count || mid(b.total) - mid(a.total)
+        : mid(b.total) - mid(a.total) || a.name.localeCompare(b.name))
+    const list = $('list')
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty">JR hasn\'t seen your inventory yet.<br>Open your clothing inventory in Animal Jam, and go to your den once for den items.</div>'
+      return
+    }
+    if (!shown.length) {
+      list.innerHTML = `<div class="empty">${valuedOnly ? 'No valued items here. Untick “Valued only” to see everything.' : 'Nothing matches your search.'}</div>`
+      return
+    }
+    const limit = 400
+    list.innerHTML = shown.slice(0, limit).map(r => {
+      const pic = r.image ? `<img src="${escape(r.image)}" alt="" loading="lazy" onerror="this.parentNode.textContent='${r.kind === 'den' ? '⌂' : '◇'}'">` : (r.kind === 'den' ? '⌂' : '◇')
+      const worth = r.total
+        ? `<div class="d">${escape(pricer.format(r.total, { bl: false }))}</div>${r.count > 1 ? `<div class="e">${escape(pricer.format(r.each, { bl: false }).replace('≈ ', ''))} each</div>` : ''}`
+        : r.store && r.status !== 'unknown'
+          ? `<div class="d store">${r.store.cost.toLocaleString()} ${escape(r.store.currency)}</div><div class="e">store price${r.store.members ? ' · members' : ''}</div>`
+          : `<div class="none">${r.status === 'store' ? 'In stores' : r.status === 'unknown' ? 'Under investigation' : r.status === 'unclear' ? 'Several wiki values' : 'No value'}</div>`
+      return `<div class="row"><div class="pic">${pic}</div><div class="info"><div class="name">${escape(r.name)}${r.color ? ` · ${escape(r.color)}` : ''}${r.count > 1 ? `<span class="n">×${r.count}</span>` : ''}<span class="tag">${r.kind === 'den' ? 'Den' : 'Clothing'}</span></div><div class="wiki">${escape(r.text || (r.status === 'unclear' ? 'The wiki values its versions differently, and JR can’t tell which one this is yet' : 'Not listed on the wiki'))}${r.text && r.source ? `<span class="src"> · from ${escape(r.source)}</span>` : ''}</div></div><div class="worth">${worth}</div></div>`
+    }).join('') + (shown.length > limit ? `<div class="empty">Showing the first ${limit} of ${shown.length.toLocaleString()}. Search to find the rest.</div>` : '')
+  }
+
+  function refresh () {
+    const inv = inventory()
+    const key = `${inv.receivedAt}:${inv.clothing.length}:${inv.den.length}`
+    if (key === lastKey) return
+    lastKey = key
+    rows = build(inv)
+    const when = inv.receivedAt ? new Date(inv.receivedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null
+    $('status').textContent = rows.length
+      ? `${inv.clothing.length.toLocaleString()} clothing · ${inv.den.length.toLocaleString()} den items${when ? ` · updated ${when}` : ''} · ${pricer.entries.toLocaleString()} wiki values`
+      : 'Waiting for your inventory from Animal Jam.'
+    renderStats(rows)
+    renderList()
+  }
+
+  $('tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-tab]')
+    if (!b) return
+    tab = b.dataset.tab
+    document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b))
+    renderList()
+  })
+  $('search').addEventListener('input', renderList)
+  $('sort').addEventListener('change', renderList)
+  $('valuedOnly').addEventListener('change', renderList)
+
+  refresh()
+  setInterval(refresh, 2000)
 })()

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gem Farm</title>
+  <style>
+    :root {
+      --bg: #0b0b0c; --panel: #111113; --line: #1f1f22; --line2: #2f2f34;
+      --text: #ededee; --dim: #a6a6ac; --faint: #6c6c72; --good: #4ade80; --bad: #f87171;
+      --mono: ui-monospace, "JetBrains Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    h1 { font-size: 16px; font-weight: 650; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line2); }
+    .dot.on { background: var(--good); box-shadow: 0 0 8px var(--good); }
+    .sub { color: var(--faint); font-size: 12px; margin-top: 3px; }
+    .card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 12px 14px; display: grid; gap: 10px; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .row label { color: var(--dim); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .sp { flex: 1; }
+    input[type=number] { width: 74px; background: var(--bg); color: var(--text); border: 1px solid var(--line2); border-radius: 8px; height: 30px; padding: 0 8px; font: inherit; }
+    button { height: 34px; padding: 0 16px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: var(--text); border: 1px solid var(--line2); }
+    button.primary { background: #f4f4f5; color: #0b0b0c; border: 0; }
+    button:disabled { opacity: .4; cursor: default; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+    .stat .k { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+    .stat .v { font-family: var(--mono); font-size: 15px; margin-top: 2px; }
+    .items { color: var(--faint); font-size: 11.5px; line-height: 1.5; }
+    #status { font-size: 12px; color: var(--faint); min-height: 18px; }
+    #status.error { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <div>
+    <h1><span class="dot" id="dot"></span>Gem Farm</h1>
+    <div class="sub">Claims adventure #49's gift prizes over and over. Stand in any room, press Start, and keep this window open.</div>
+  </div>
+  <div class="card">
+    <div class="row">
+      <label>Wait between packets <input id="delay" type="number" min="0.25" step="0.05" value="0.5"> s</label>
+      <span class="sp"></span>
+      <label><input id="recycle" type="checkbox" checked> Recycle prize items for gems</label>
+    </div>
+    <div class="items" id="items"></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="k">Rounds</div><div class="v" id="cycles">0</div></div>
+    <div class="stat"><div class="k">Recycled</div><div class="v" id="recycled">0</div></div>
+    <div class="stat"><div class="k">Running for</div><div class="v" id="time">—</div></div>
+  </div>
+  <div class="row">
+    <span class="sp"></span>
+    <button id="stop" disabled>Stop</button>
+    <button id="start" class="primary">Start</button>
+  </div>
+  <div id="status"></div>
+  <script>
+    (async () => {
+      const $ = (id) => document.getElementById(id)
+      const jam = window.jam || await new Promise(resolve => {
+        const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 25)
+      })
+      const path = require('path')
+      const { GemFarm, PRIZE_ITEMS, MIN_DELAY } = require(path.join(__dirname, 'farm.js'))
+      const store = jam.storage
+      const setStatus = (text, isError) => { $('status').textContent = text || ''; $('status').className = isError ? 'error' : '' }
+
+      $('delay').min = MIN_DELAY / 1000
+      $('delay').value = store.get('delay', 0.5)
+      $('recycle').checked = store.get('recycle', true)
+      $('delay').onchange = () => store.set('delay', Math.max(MIN_DELAY / 1000, Number($('delay').value) || 0.5))
+      $('recycle').onchange = () => { store.set('recycle', $('recycle').checked); farm.recycle = $('recycle').checked }
+
+      const items = jam.application && jam.application.items
+      const names = PRIZE_ITEMS.map(id => { const c = items && items.getClothing && items.getClothing(id); return c && c.name ? c.name : `#${id}` })
+      $('items').textContent = 'Recycles: ' + [...new Set(names)].join(', ')
+
+      const duration = (ms) => { const s = Math.floor(ms / 1000); return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${Math.floor(s / 3600)}h ${Math.floor(s / 60) % 60}m` }
+      function render () {
+        $('dot').classList.toggle('on', farm.running)
+        $('start').disabled = farm.running
+        $('stop').disabled = !farm.running
+        $('delay').disabled = farm.running
+        $('cycles').textContent = farm.stats.cycles.toLocaleString()
+        $('recycled').textContent = farm.stats.recycled.toLocaleString()
+        $('time').textContent = farm.stats.startedAt ? duration(Date.now() - farm.stats.startedAt) : '—'
+      }
+      const farm = new GemFarm({ dispatch: jam.dispatch, onChange: render })
+      setInterval(() => { if (farm.running) render() }, 1000)
+
+      $('start').onclick = () => {
+        setStatus('Farming…')
+        farm.start({ delay: Number($('delay').value) * 1000, recycle: $('recycle').checked })
+          .then(() => setStatus(`Stopped after ${farm.stats.cycles} round${farm.stats.cycles === 1 ? '' : 's'}.`))
+          .catch(error => setStatus(error.message, true))
+      }
+      $('stop').onclick = () => farm.stop()
+      window.addEventListener('beforeunload', () => farm.dispose())
+      render()
+    })().catch((error) => {
+      const status = document.getElementById('status')
+      status.textContent = "Gem Farm couldn't start: " + error.message
+      status.className = 'error'
+    })
+  </script>
+</body>
+</html>

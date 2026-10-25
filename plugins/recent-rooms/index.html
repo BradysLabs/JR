@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Recent Rooms</title>
+  <style>
+    :root { --bg: #0b0b0c; --panel: #111113; --line: #1f1f22; --line2: #2f2f34; --line3: #45454b; --text: #ededee; --dim: #a6a6ac; --faint: #6c6c72; --good: #4ade80; --bad: #f87171; --mono: ui-monospace, "JetBrains Mono", Consolas, monospace; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    h1 { font-size: 16px; font-weight: 650; margin: 0; }
+    .sub { color: var(--faint); font-size: 12px; margin-top: 3px; }
+    .list { flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+    .room { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 9px 12px; border-top: 1px solid var(--line); }
+    .room:first-child { border-top: 0; }
+    .room .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .room .d { color: var(--faint); font-size: 11.5px; }
+    .room time { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+    .room.here .t::after { content: '  \2022 you\2019re here'; color: var(--good); font-weight: 500; font-size: 11.5px; }
+    button { height: 30px; padding: 0 14px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: var(--text); border: 1px solid var(--line2); }
+    button:hover:not(:disabled) { border-color: var(--line3); }
+    button:disabled { opacity: .4; cursor: default; }
+    .empty { color: var(--faint); padding: 22px; text-align: center; font-size: 12.5px; }
+    #status { font-size: 12px; color: var(--faint); min-height: 18px; }
+    #status.error { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Recent Rooms</h1>
+    <div class="sub">Rooms and dens you've been in since you logged in, newest first. Click Go to head back.</div>
+  </div>
+  <div class="list" id="list"></div>
+  <div id="status"></div>
+  <script>
+    (async () => {
+      const $ = (id) => document.getElementById(id)
+      const escape = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+      const setStatus = (text, isError) => { $('status').textContent = text || ''; $('status').className = isError ? 'error' : '' }
+      const jam = window.jam || await new Promise(resolve => {
+        const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 25)
+      })
+      const path = require('path')
+      const { describeRoom, joinPacket } = require(path.join(__dirname, 'rooms.js'))
+      const app = jam.application
+      let rooms = []
+      let lastKey = ''
+      const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : `${Math.floor(s / 3600)}h ${Math.floor(s / 60) % 60}m ago` }
+
+      function render (force) {
+        rooms = app && typeof app.recentRooms === 'function' ? app.recentRooms() : []
+        const here = jam.dispatch.getState('roomName')
+        const key = JSON.stringify(rooms.map(r => r.name)) + here + Math.floor(Date.now() / 60000)
+        if (!force && key === lastKey) return
+        lastKey = key
+        if (!app || typeof app.recentRooms !== 'function') { $('list').innerHTML = '<div class="empty">This needs JR 0.1.0 or newer.</div>'; return }
+        if (!rooms.length) { $('list').innerHTML = '<div class="empty">No rooms yet. Walk around Jamaa and they’ll show up here.</div>'; return }
+        $('list').innerHTML = rooms.map((r, i) => {
+          const d = describeRoom(r.name)
+          const isHere = r.name === here
+          return `<div class="room ${isHere ? 'here' : ''}"><div><div class="t" title="${escape(r.name)}">${escape(d.title)}</div><div class="d">${escape(d.detail)}</div></div><time>${ago(r.at)}</time><button data-i="${i}" ${isHere ? 'disabled' : ''}>Go</button></div>`
+        }).join('')
+      }
+
+      $('list').addEventListener('click', async (e) => {
+        const b = e.target.closest('[data-i]')
+        if (!b) return
+        const r = rooms[Number(b.dataset.i)]
+        try {
+          await jam.dispatch.sendRemoteMessage(joinPacket(jam.dispatch.getState('room'), r.name))
+          setStatus(`Heading to ${describeRoom(r.name).title}…`)
+          b.disabled = true
+          setTimeout(() => render(true), 1500)
+        } catch (error) { setStatus(error.message, true) }
+      })
+
+      render(true)
+      setInterval(() => render(false), 1000)
+    })().catch((error) => {
+      const status = document.getElementById('status')
+      status.textContent = "Recent Rooms couldn't start: " + error.message
+      status.className = 'error'
+    })
+  </script>
+</body>
+</html>

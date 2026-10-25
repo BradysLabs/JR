@@ -1,7 +1,7 @@
 'use strict'
 
 /**
- * Discord Rich Presence: shows "JR" on your Discord profile, with a button
+ * Discord Rich Presence: shows "JR" on your Discord profile, with a link
  * to join the JR server. Talks to the Discord app on this computer through
  * its local connection (a named pipe on Windows, a socket elsewhere), so no
  * login or token is involved. If Discord isn't open, JR keeps trying quietly.
@@ -138,27 +138,33 @@ class Presence extends EventEmitter {
  * @param {{invite: string, startedAt: number}} options
  */
 function activityFor (windows, { invite, startedAt }) {
+  let inviteText = 'Join the JR Discord'
+  try {
+    const url = new URL(invite)
+    const code = `${url.host}${url.pathname}`.replace(/\/$/, '')
+    if (code) inviteText = code
+  } catch (_) {}
   const online = windows.filter(w => w.connected)
   const playing = windows.filter(w => w.playing || w.connected)
   let details = 'In the JR launcher'
-  let state
+  let state = inviteText
   if (online.length === 1) {
     details = 'Playing Animal Jam Classic'
-    state = online[0].room ? `In ${online[0].room}` : undefined
+    state = online[0].room ? `In ${online[0].room} · ${inviteText}` : inviteText
   } else if (online.length > 1) {
     details = 'Playing Animal Jam Classic'
-    state = `${online.length} accounts online`
+    state = `${online.length} accounts online · ${inviteText}`
   } else if (playing.length) {
     details = 'Starting Animal Jam Classic'
   }
   const activity = {
     details,
+    state,
+    state_url: invite,
     timestamps: { start: Math.floor(startedAt / 1000) },
-    assets: { large_image: 'jr', large_text: 'JR by BradysLabs' },
-    buttons: [{ label: 'Join the JR Discord', url: invite }],
+    assets: { large_image: 'discord-presence', large_text: 'JR by BradysLabs' },
     instance: false
   }
-  if (state) activity.state = state
   return activity
 }
 

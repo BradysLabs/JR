@@ -403,4 +403,4 @@ function imageForRows (rows) {
   return images.length === 1 ? images[0] : ''
 }
 
-module.exports = { normalize, indexWorth, colorName, colorNames, itemColorVariant, rowsFor, rowsForInventory, rowsForGameItem, spikeLength, describeRow, valueForRows, imageForRows }
+module.exports = { colorTerms, normalize, indexWorth, colorName, colorNames, itemColorVariant, rowsFor, rowsForInventory, rowsForGameItem, spikeLength, describeRow, valueForRows, imageForRows }

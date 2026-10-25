@@ -246,3 +246,16 @@ test('Packet Spammer: splitting, {room}, running and stopping', async () => {
   await Spammer.run(fake, steps, { onError: (e) => errors.push(e.message), wait: () => Promise.resolve() }).done
   assert.match(errors[0], /Join a room first/)
 })
+
+test('Packet Spammer: runner.js sets window.SpammerRunner even when Node is on (JR plugin windows)', () => {
+  const vm = require('vm')
+  const source = fs.readFileSync(path.join(BUILT_IN, 'packet-spammer', 'runner.js'), 'utf8')
+  // A JR plugin window has both a window and Node's `module`.
+  const window = {}
+  window.self = window
+  const fakeModule = { exports: {} }
+  const context = vm.createContext({ window, self: window, module: fakeModule })
+  vm.runInContext(source, context)
+  assert.equal(typeof window.SpammerRunner?.run, 'function')
+  assert.equal(typeof fakeModule.exports.run, 'function')
+})

@@ -1,6 +1,6 @@
 {
   "name": "Adventures",
-  "description": "Join another player's adventure and run it step by step (Return of the Phantoms, more coming).",
+  "description": "Run adventures step by step: join another player's game, or start Tiki Trouble on your own.",
   "category": "Gameplay",
   "icon": "fa-flag-checkered",
   "main": "index.html",

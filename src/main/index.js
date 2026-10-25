@@ -10,11 +10,12 @@
 
 const path = require('path')
 const fs = require('fs')
-const { app, BrowserWindow, ipcMain, protocol, session, shell, net, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, protocol, session, shell, net, Menu, dialog } = require('electron')
 const { pathToFileURL } = require('url')
 const config = require('../config')
 const { ProfileStore } = require('../profiles/store')
 const { ensureGame } = require('../game/install')
+const qol = require('../ui/qol')
 
 const ROOT = path.join(__dirname, '..', '..')
 const UI = path.join(ROOT, 'src', 'ui')
@@ -142,9 +143,12 @@ function openProfile (id) {
     backgroundThrottling: false,
     spellcheck: false
   }
-  const win = new BrowserWindow({ ...WINDOW_BASE, width: 1100, height: 720, minWidth: 860, minHeight: 600, title: `JR · ${profile.name}`, webPreferences: prefs })
+  // Reopen where this profile's window was last time.
+  const saved = (appSettings().windowBounds || {})[id]
+  const win = new BrowserWindow({ ...WINDOW_BASE, width: 1100, height: 720, ...placement(saved), minWidth: 860, minHeight: 600, title: `JR · ${profile.name}`, webPreferences: prefs })
   win.loadFile(path.join(UI, 'app.html'), { query: { profile: id } })
-  win.once('ready-to-show', () => win.show())
+  win.once('ready-to-show', () => { if (saved && saved.maximized) win.maximize(); win.show() })
+  win.on('close', () => rememberBounds(id, win))
 
   // Plugin windows: same session and powers as the profile window, so
   // plugins keep using window.jam and Node like they did in Jam Reborn.
@@ -165,8 +169,18 @@ function openProfile (id) {
       }
     }
   })
-  win.webContents.on('did-create-window', (child) => {
+  win.webContents.on('did-create-window', (child, details) => {
     child.setMenu(null)
+    // A plugin window's uncaught errors (including failed async code, which
+    // the page itself never sees) go to the profile window to show the user.
+    const pluginId = String((details && details.frameName) || '').replace(/^jr-plugin-/, '')
+    child.webContents.on('console-message', (event, level, message) => {
+      // Electron 35+ passes one event object; older versions pass the values.
+      const text = typeof message === 'string' ? message : event && event.message
+      const isError = typeof level === 'number' ? level >= 3 : event && event.level === 'error'
+      if (!pluginId || !isError || !/^Uncaught\b/.test(String(text))) return
+      if (!win.isDestroyed()) win.webContents.send('jr:plugin-error', { id: pluginId, message: qol.cleanError(text) })
+    })
     child.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:/.test(url)) shell.openExternal(url)
       return { action: 'deny' }
@@ -180,6 +194,26 @@ function openProfile (id) {
   })
   profileWindows.set(id, { win, release, profile })
   return { opened: true }
+}
+
+/** Window size and position from last time, if it still fits on a screen. */
+function placement (saved) {
+  if (!saved) return {}
+  try {
+    const { screen } = require('electron')
+    const area = screen.getDisplayMatching({ x: Math.round(saved.x) || 0, y: Math.round(saved.y) || 0, width: Math.round(saved.width) || 1, height: Math.round(saved.height) || 1 }).workArea
+    return qol.placeWindow(saved, area)
+  } catch (_) {
+    return {}
+  }
+}
+
+function rememberBounds (id, win) {
+  try {
+    const all = appSettings().windowBounds || {}
+    all[id] = { ...win.getNormalBounds(), maximized: win.isMaximized() }
+    saveAppSettings({ windowBounds: all })
+  } catch (_) {}
 }
 
 function broadcast (channel, data) {
@@ -244,6 +278,21 @@ function registerIpc () {
   })
   handle('presence:enabled', (e, on) => { saveAppSettings({ richPresence: !!on }); presence.setEnabled(!!on); return !!on })
 
+  // Report a bug: save the report where the user picks (Downloads by default).
+  handle('bugreport:save', async (e, text, name) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const safe = String(name || 'JR-bug-report.txt').replace(/[^\w.-]+/g, '-')
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Save bug report',
+      defaultPath: path.join(app.getPath('downloads'), safe),
+      filters: [{ name: 'Text file', extensions: ['txt'] }]
+    })
+    if (result.canceled || !result.filePath) return null
+    fs.writeFileSync(result.filePath, String(text || ''), 'utf8')
+    shell.showItemInFolder(result.filePath)
+    return result.filePath
+  })
+
   handle('open-url', (e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url) })
   handle('open-path', (e, p) => shell.openPath(p))
 
@@ -283,6 +332,7 @@ function registerIpc () {
     else if (action === 'maximize') (win.isMaximized() ? win.unmaximize() : win.maximize())
     else if (action === 'close') win.close()
     else if (action === 'devtools') win.webContents.toggleDevTools()
+    else if (action === 'focus') { if (win.isMinimized()) win.restore(); win.show(); win.focus() }
   })
 }
 

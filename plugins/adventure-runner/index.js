@@ -14,6 +14,10 @@
  *   {
  *     id, name, questId,
  *     modes: ['hard', 'easy'],          // first = default
+ *     solo: true,                       // optional, can be started alone (host box left empty)
+ *     choices: {                        // optional checkboxes; steps read ctx.choices
+ *       label: 'Rewards', options: [{ id, label }], defaults: [ids]
+ *     },
  *     afterStart: async ctx => {},      // optional, runs after each room load
  *     handlesPrizes: true,              // optional, steps claim prizes themselves
  *     steps: [{ label, run: async ctx => {} }],
@@ -61,6 +65,7 @@ const $ = id => document.getElementById(id);
 const listEl = $('adventureList');
 const modeEl = $('modeToggle');
 const stepsEl = $('stepList');
+const choicesEl = $('choices');
 const statusEl = $('status');
 const logEl = $('log');
 const startButton = $('startButton');
@@ -311,8 +316,23 @@ function setupListeners() {
 // STEP CONTEXT
 // ============================================================
 
+// Which of an adventure's choices are ticked (remembered per adventure).
+function choicesFor(adventure) {
+  if (!adventure || !adventure.choices) return [];
+  const ids = adventure.choices.options.map(o => o.id);
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(`adventures.choices.${adventure.id}`)); } catch (e) { /* storage unavailable */ }
+  const list = Array.isArray(saved) ? saved : (adventure.choices.defaults || ids);
+  return ids.filter(id => list.includes(id));
+}
+
+function setChoices(adventure, list) {
+  try { localStorage.setItem(`adventures.choices.${adventure.id}`, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
+}
+
 function makeContext(adventure) {
   const ctx = {
+    choices: choicesFor(adventure),
     async send(template, delay = STEP_DELAY) {
       if (!running) throw new Stopped();
 
@@ -364,6 +384,18 @@ function makeContext(adventure) {
       if (!running) throw new Stopped();
     },
 
+    // Forget any earlier prize screen, before doing something that gives a prize.
+    newPrize() {
+      prizeOffered = false;
+      prizeClaimed = false;
+    },
+
+    // Waits for a prize screen and takes the prize the way the Prize setting
+    // says (or waits for you to pick). True if one opened within `timeout`.
+    collectPrize(timeout = PRIZE_SCREEN_TIMEOUT) {
+      return handlePrize(ctx, timeout, true);
+    },
+
     log,
 
     status: setStatus
@@ -404,6 +436,10 @@ async function startRun(here = false) {
   if (running || !selected) return;
 
   const adventure = selected;
+  if (adventure.choices && !choicesFor(adventure).length) {
+    setStatus(`Tick at least one under ${adventure.choices.label}.`);
+    return;
+  }
   if (here) return runHere(adventure);
 
   if (!adventure.questId) {
@@ -412,9 +448,12 @@ async function startRun(here = false) {
   }
 
   const host = hostDen();
+  const typedHost = String(hostInput ? hostInput.value : '').trim();
 
-  if (!host) {
-    setStatus('Type the username of the player whose adventure you want to join.');
+  if (!host && (typedHost || !adventure.solo)) {
+    setStatus(typedHost
+      ? `"${typedHost}" isn't a valid username.`
+      : 'Type the username of the player whose adventure you want to join.');
     if (hostInput) hostInput.focus();
     return;
   }
@@ -423,7 +462,7 @@ async function startRun(here = false) {
   const totalRuns = looping ? readInt(loopRunsInput, 0) : 1;   // 0 = until stopped
   const delayMs = readInt(loopDelayInput, 5) * 1000;
 
-  log('info', `Joining ${host.name}'s ${adventure.name}` + (looping ? ` (loop: ${totalRuns || 'until stopped'})` : ''));
+  log('info', (host ? `Joining ${host.name}'s ${adventure.name}` : `Starting ${adventure.name} on your own`) + (looping ? ` (loop: ${totalRuns || 'until stopped'})` : ''));
 
   running = true;
   setRunningUI(true);
@@ -521,11 +560,15 @@ async function runOnce(adventure, host, leaveAfter, isRejoin) {
     // ---------- Join the host's game ----------
     // Note the room before joining, so a quick Start by the host isn't missed.
     const lobbyRoom = await refreshRoom();
-    await joinHost(ctx, adventure, host, isRejoin);
+    if (host) {
+      await joinHost(ctx, adventure, host, isRejoin);
 
-    // ---------- Wait for the host to start ----------
-    setStatus(`Joined ${host.name}'s game. Waiting for them to start...`);
-    await waitForRoomChange(lobbyRoom, HOST_START_TIMEOUT);
+      // ---------- Wait for the host to start ----------
+      setStatus(`Joined ${host.name}'s game. Waiting for them to start...`);
+      await waitForRoomChange(lobbyRoom, HOST_START_TIMEOUT);
+    } else {
+      await startSolo(ctx, adventure, lobbyRoom);
+    }
     log('ok', 'Adventure started.');
     await ctx.send('%xt%o%qmi%{room}%');
     if (adventure.afterStart) await adventure.afterStart(ctx);
@@ -615,16 +658,36 @@ async function joinHost(ctx, adventure, host, isRejoin) {
   }
 }
 
-async function handlePrize(ctx) {
+// Starts your own game of a solo adventure: create it, then press Start.
+async function startSolo(ctx, adventure, lobbyRoom) {
+  const hardFlag = mode === 'hard' ? 1 : 0;
+  setStatus(`Starting ${adventure.name}${adventure.modes.length > 1 ? ` (${mode})` : ''}...`);
+
+  joinReply = null;
+  seenObjects.clear();
+  await ctx.send(`%xt%o%qjc%{room}%0%${adventure.questId}%${hardFlag}%`, CREATE_DELAY);
+
+  if (joinReply && !joinReply.ok) {
+    const reason = joinReply.reason;
+    throw new Error(JOIN_ERRORS[reason] || `The game wouldn't start ${adventure.name} (reason: ${reason || 'unknown'}).`);
+  }
+
+  // Some adventures start as soon as they're created; otherwise press Start.
+  if ((await refreshRoom()) === lobbyRoom) await ctx.send('%xt%o%qs%{room}%0%', 0);
+  await waitForRoomChange(lobbyRoom, ROOM_WAIT_TIMEOUT * 2);
+}
+
+// Returns true if a prize screen opened (and was dealt with), false if not.
+async function handlePrize(ctx, timeout = PRIZE_SCREEN_TIMEOUT, quiet = false) {
   // Wait for the prize screen to open.
-  const deadline = Date.now() + PRIZE_SCREEN_TIMEOUT;
+  const deadline = Date.now() + timeout;
   while (!prizeOffered && Date.now() < deadline) {
     await ctx.wait(250);
   }
 
   if (!prizeOffered) {
-    log('warn', 'Prize screen never opened (the server may not have counted the run).');
-    return;
+    if (!quiet) log('warn', 'Prize screen never opened (the server may not have counted the run).');
+    return false;
   }
 
   const choice = prizeChoice ? prizeChoice.value : 'manual';
@@ -638,13 +701,14 @@ async function handlePrize(ctx) {
     if (prizeClaimed) log('ok', 'Prize claimed.');
     else log('warn', 'No prize claim seen within 60s; moving on.');
     await ctx.wait(1000);
-    return;
+    return true;
   }
 
   const slot = parseInt(choice, 10) - 1;
   setStatus(`Claiming prize ${slot + 1}...`);
   await ctx.send(`%xt%o%qpgift%{room}%${slot}%0%0%`, 100);
   await ctx.send('%xt%o%qpgiftdone%{room}%1%', 1500);
+  return true;
 }
 
 function setRunCounter(text) {
@@ -716,6 +780,31 @@ function renderModes() {
   modeEl.style.display = selected.modes.length > 1 ? '' : 'none';
 }
 
+function renderChoices() {
+  choicesEl.innerHTML = '';
+  if (!selected || !selected.choices) return;
+  const ticked = choicesFor(selected);
+  const label = document.createElement('span');
+  label.className = 'ar-choices-label';
+  label.textContent = selected.choices.label;
+  choicesEl.appendChild(label);
+  for (const option of selected.choices.options) {
+    const row = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = ticked.includes(option.id);
+    box.disabled = running;
+    box.addEventListener('change', () => {
+      const now = choicesFor(selected).filter(id => id !== option.id);
+      if (box.checked) now.push(option.id);
+      setChoices(selected, selected.choices.options.map(o => o.id).filter(id => now.includes(id)));
+    });
+    row.append(box, document.createTextNode(option.label));
+    if (option.title) row.title = option.title;
+    choicesEl.appendChild(row);
+  }
+}
+
 function renderSteps() {
   stepsEl.innerHTML = '';
   if (!selected) return;
@@ -758,11 +847,14 @@ function setRunningUI(isRunning) {
   }
   renderAdventureList();
   renderModes();
+  renderChoices();
 }
 
 function renderAll() {
+  if (hostInput) hostInput.placeholder = selected && selected.solo ? 'Host (leave empty to play alone)' : 'Host\'s username';
   renderAdventureList();
   renderModes();
+  renderChoices();
   renderSteps();
   startButton.disabled = running || !selected;
 }

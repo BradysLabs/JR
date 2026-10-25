@@ -6,8 +6,11 @@
  * wait after sending. {room} in a packet becomes your current room.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory()
-  else root.SpammerRunner = factory()
+  const api = factory()
+  // JR's plugin windows have Node turned on, so `module` exists there too.
+  // Always set the window global as well, or the page can't find it.
+  if (typeof module === 'object' && module.exports) module.exports = api
+  if (root) root.SpammerRunner = api
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict'
 

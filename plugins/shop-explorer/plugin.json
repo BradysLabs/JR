@@ -1,0 +1,9 @@
+{
+  "name": "Shop Explorer",
+  "description": "Lists everything for sale in every My Shop in the den you're in, with Item Worth Wiki values so deals stand out.",
+  "category": "Trading",
+  "icon": "fa-store",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

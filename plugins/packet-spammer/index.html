@@ -197,7 +197,13 @@
       window.addEventListener('beforeunload', () => { if (runner) runner.stop() })
 
       render()
-    })()
+    })().catch((error) => {
+      // If setup fails, say so instead of leaving buttons that do nothing.
+      const status = document.getElementById('status')
+      status.textContent = "Packet Spammer couldn't start: " + error.message
+      status.className = 'error'
+      try { window.jam.application.consoleMessage({ type: 'error', message: 'Packet Spammer: ' + error.message }) } catch (_) {}
+    })
   </script>
 </body>
 </html>

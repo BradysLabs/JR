@@ -47,6 +47,12 @@
             <div class="kicker">PINNED</div>
             <div class="chips" id="pins"></div>
           </div>
+          <div class="home-overview" id="homeOverview" aria-label="JR overview">
+            <div class="overview-stat"><span class="overview-dot" id="overviewDot"></span><span class="overview-label">Game</span><strong id="overviewGame">Not connected</strong></div>
+            <div class="overview-stat"><span class="overview-label">Plugins ready</span><strong id="overviewPlugins">0</strong></div>
+            <button class="overview-review hidden" id="overviewReview"></button>
+            <button class="overview-link" id="overviewBrowse">Browse plugins <span aria-hidden="true">→</span></button>
+          </div>
         </div>
         <button class="home-customize" id="homeCustomize" title="Change the theme and what Home shows"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4h6.5M12.5 4H14M2 8h1.5M7.5 8H14M2 12h8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10.5" cy="4" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="8" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="12.5" cy="12" r="1.6" stroke="currentColor" stroke-width="1.4"/></svg>Customize</button>
         <div class="ticker" id="homeTicker"><span class="mono t" id="tickT"></span><span class="mono m" id="tickM"></span><div class="grow"></div><button class="link" id="openLogs">Open logs</button></div>
@@ -62,6 +68,7 @@
           <button class="btn small" id="pluginFolder" title="Put plugin folders here">Plugins folder</button>
         </div>
         <div class="cats" id="cats"></div>
+        <div class="plugin-filters" id="pluginFilters" aria-label="Filter plugins"></div>
         <div class="grid" id="grid"></div>
       </section>
 
@@ -92,9 +99,12 @@
           <h2>Logs</h2>
           <div class="tabs" id="logTabs"><button data-tab="console" class="on">Console</button><button data-tab="network">Network</button></div>
           <div class="grow"></div>
-          <input class="field small-field hidden" id="netFilter" placeholder="Filter, e.g. rj" spellcheck="false">
+          <input class="field small-field hidden" id="netFilter" placeholder="Show only, e.g. rj" title="Show only packets of this type, or containing this text" spellcheck="false">
+          <input class="field small-field hidden" id="netHide" placeholder="Hide, e.g. ka, umo" title="Hide packets of these types, or containing this text. Separate with commas. Saved for this profile." spellcheck="false">
           <button class="btn small hidden" id="pauseNet">Pause</button>
+          <button class="btn small" id="copyLogs" title="Copy everything shown below">Copy</button>
           <button class="btn small" id="clearLogs">Clear</button>
+          <button class="btn small" id="reportBug">Report a bug</button>
         </div>
         <div class="logbox" id="logbox"></div>
         <div class="cmdline"><span class="mono">›</span><input id="cmd" class="mono" placeholder="Type a command, e.g. membership" spellcheck="false" autocomplete="off"></div>
@@ -107,6 +117,35 @@
       </section>
     </div>
   </main>
+
+  <div class="modal hidden" id="packetModal">
+    <div class="modal-box wide">
+      <h3 id="packetTitle">Packet</h3>
+      <p id="packetMeta"></p>
+      <pre class="packet-full mono" id="packetFull"></pre>
+      <div class="modal-actions"><button class="btn" id="packetSpam">Send to Packet Spammer</button><button class="btn" id="packetCopy">Copy</button><button class="btn primary" id="packetClose">Close</button></div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="newsModal">
+    <div class="modal-box">
+      <h3 id="newsTitle">What's new</h3>
+      <div class="news-list" id="newsList"></div>
+      <div class="modal-actions"><button class="btn primary" id="newsClose">Got it</button></div>
+    </div>
+  </div>
+
+  <div class="ctx hidden" id="ctxMenu" role="menu"></div>
+
+  <div class="modal hidden" id="bugModal">
+    <div class="modal-box">
+      <h3>Report a bug</h3>
+      <p>JR saves a report with your JR version, settings, plugins and recent logs. Your password, login tokens and email are removed. It does include your Animal Jam username and recent game messages, which help find the problem.</p>
+      <textarea id="bugNote" placeholder="What happened, and what were you doing when it went wrong?" spellcheck="true"></textarea>
+      <div class="modal-actions"><button class="btn" id="bugCancel">Cancel</button><button class="btn primary" id="bugSave">Save report</button></div>
+      <p class="modal-foot">Then drag the file into <b>#bug-reports</b> in the JR Discord.</p>
+    </div>
+  </div>
 
   <div class="lock hidden" id="lock">
     <div class="logo" style="width:64px;height:64px;font-size:22px;border-radius:16px">JR</div>

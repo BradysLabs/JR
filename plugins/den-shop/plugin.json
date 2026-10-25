@@ -1,0 +1,9 @@
+{
+  "name": "Den Shop",
+  "description": "Buy dens directly, including ones the game doesn't show you in its shop right now.",
+  "category": "Explore",
+  "icon": "fa-home",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

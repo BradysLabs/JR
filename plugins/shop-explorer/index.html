@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shop Explorer</title>
+  <style>
+    :root {
+      --bg: #0b0b0c; --panel: #111113; --panel2: #151518; --line: #1f1f22; --line2: #2f2f34; --line3: #45454b;
+      --text: #ededee; --dim: #a6a6ac; --faint: #6c6c72; --good: #4ade80; --warn: #fbbf24; --bad: #f87171;
+      --mono: ui-monospace, "JetBrains Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    h1 { font-size: 16px; font-weight: 650; margin: 0; }
+    .sub { color: var(--faint); font-size: 12px; margin-top: 3px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .sp { flex: 1; }
+    input, select { background: var(--panel); color: var(--text); border: 1px solid var(--line2); border-radius: 9px; font: inherit; height: 32px; padding: 0 10px; outline: none; }
+    input:focus, select:focus { border-color: #5a5a60; }
+    #search { flex: 1; min-width: 140px; }
+    label.chk { color: var(--dim); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    button { height: 32px; padding: 0 14px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: var(--text); border: 1px solid var(--line2); white-space: nowrap; }
+    button:hover:not(:disabled) { border-color: var(--line3); }
+    button.primary { background: #f4f4f5; color: #0b0b0c; border: 0; }
+    button:disabled { opacity: .4; cursor: default; }
+    .den { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .den .who { font-weight: 650; }
+    .den .meta { color: var(--faint); font-size: 12px; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip { font-size: 11.5px; color: var(--dim); border: 1px solid var(--line2); border-radius: 999px; padding: 2px 9px; cursor: pointer; background: transparent; height: auto; font-weight: 500; }
+    .chip.on { color: var(--text); border-color: var(--line3); background: var(--panel2); }
+    .chip.done::before { content: '\2713 '; color: var(--good); }
+    .table { flex: 1; min-height: 120px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+    .it { display: grid; grid-template-columns: minmax(0, 1fr) 62px 110px 150px; gap: 10px; align-items: center; padding: 7px 12px; border-top: 1px solid var(--line); }
+    .it:first-child { border-top: 0; }
+    .it.head { position: sticky; top: 0; background: var(--bg); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); font-weight: 600; border-bottom: 1px solid var(--line); z-index: 1; }
+    .it .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .it .k { font-size: 10px; letter-spacing: .6px; color: var(--faint); margin-left: 6px; text-transform: uppercase; }
+    .it .shop { color: var(--dim); font-size: 12px; }
+    .it .price, .it .wiki { font-family: var(--mono); font-size: 12px; text-align: right; }
+    .it .wiki { color: var(--dim); }
+    .tag { font-family: system-ui, sans-serif; font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
+    .tag.deal { color: #052e16; background: var(--good); }
+    .tag.over { color: var(--warn); border: 1px solid #5c4813; }
+    .empty { color: var(--faint); padding: 22px; text-align: center; font-size: 12.5px; line-height: 1.6; }
+    .note { color: var(--faint); font-size: 11.5px; }
+    #status { font-size: 12px; color: var(--faint); min-height: 18px; }
+    #status.error { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Shop Explorer</h1>
+    <div class="sub">Walk into any den with a My Shop and press Scan. JR opens every shop for you and lists what's for sale, with wiki values.</div>
+  </div>
+  <div class="den" id="den"></div>
+  <div class="row">
+    <input id="search" placeholder="Search items" spellcheck="false">
+    <select id="kind"><option value="">All types</option><option value="clothing">Clothing</option><option value="den">Den items</option><option value="pet">Pets</option></select>
+    <select id="sort"><option value="deal">Best deals first</option><option value="cheap">Cheapest first</option><option value="pricey">Most expensive first</option><option value="shop">Shop order</option></select>
+    <label class="chk"><input id="dealsOnly" type="checkbox"> Under wiki only</label>
+  </div>
+  <div class="table" id="table"></div>
+  <div class="row">
+    <span class="note" id="count"></span>
+    <span class="sp"></span>
+    <button id="copy" disabled>Copy as spreadsheet</button>
+  </div>
+  <div id="status"></div>
+  <script>
+    (async () => {
+      const $ = (id) => document.getElementById(id)
+      const escape = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+      const setStatus = (text, isError) => { $('status').textContent = text || ''; $('status').className = isError ? 'error' : '' }
+      const jam = window.jam || await new Promise(resolve => {
+        const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 25)
+      })
+      const path = require('path')
+      const root = path.resolve(__dirname, '..', '..')
+      const api = () => jam.dispatch.getState('shopTemplates')
+      const store = jam.storage
+
+      // Pet names from the Pet Catalog plugin's list.
+      let petNames = new Map()
+      try { petNames = new Map(require(path.join(root, 'plugins', 'pet-catalog', 'pets.json')).map(p => [Number(p.id), p.name])) } catch (_) {}
+
+      // Wiki values (same as Trading and My Shop Templates).
+      let pricer = null
+      const getPricer = () => {
+        if (pricer !== null) return pricer || null
+        const items = jam.application && jam.application.items
+        if (!items || !items.ready) return null
+        try { pricer = require(path.join(root, 'src', 'worth', 'pricer.js')).createPricer({ root, items }) } catch (_) { pricer = false }
+        return pricer || null
+      }
+      const valueCache = new Map()
+      function wikiFor (it) {
+        if (it.kind === 'pet') return null
+        const key = `${it.kind}:${it.defId}:${it.color}`
+        if (valueCache.has(key)) return valueCache.get(key)
+        const p = getPricer()
+        if (!p) return null
+        let out = null
+        try { const v = p.value({ kind: it.kind, id: it.defId, color: it.color }); if (v && v.diamonds) out = { range: v.diamonds, text: p.format(v.diamonds, { bl: false }) } } catch (_) {}
+        valueCache.set(key, out)
+        return out
+      }
+      // How a Diamond price compares with the wiki: -0.4 means 40% under.
+      function dealOf (it, wiki) {
+        if (!wiki || it.currency !== 3 || !(it.cost > 0)) return null
+        const mid = (wiki.range.min + wiki.range.max) / 2
+        if (it.cost < wiki.range.min) return { under: true, pct: Math.round((1 - it.cost / mid) * 100) }
+        if (it.cost > wiki.range.max) return { under: false, pct: Math.round((it.cost / mid - 1) * 100) }
+        return { under: false, pct: 0 }
+      }
+
+      $('kind').value = store.get('kind', '')
+      $('sort').value = store.get('sort', 'deal')
+      $('dealsOnly').checked = store.get('dealsOnly', false)
+      let onlyStand = null
+      let scanning = false
+      let snap = null
+      let lastKey = ''
+
+      /* ---------------------------------------------------- render */
+      function allItems () {
+        const out = []
+        for (const st of snap.stands) {
+          if (!st.items || (onlyStand && onlyStand !== st.id)) continue
+          st.items.forEach((it, i) => {
+            const name = it.kind === 'pet' ? (petNames.get(it.defId) || `Pet #${it.defId}`) : it.name
+            const wiki = wikiFor(it)
+            out.push({ ...it, name, shop: st.number, standId: st.id, order: st.number * 1000 + i, wiki, deal: dealOf(it, wiki) })
+          })
+        }
+        return out
+      }
+      function shown () {
+        const q = $('search').value.trim().toLowerCase()
+        const kind = $('kind').value
+        const deals = $('dealsOnly').checked
+        const list = allItems().filter(it => (!kind || it.kind === kind) && (!q || String(it.name).toLowerCase().includes(q)) && (!deals || (it.deal && it.deal.under)))
+        const diamonds = (it) => (it.currency === 3 ? it.cost : it.cost / 1000) // Gems sort below Diamonds
+        const sort = $('sort').value
+        list.sort((a, b) => {
+          if (sort === 'cheap') return diamonds(a) - diamonds(b)
+          if (sort === 'pricey') return diamonds(b) - diamonds(a)
+          if (sort === 'shop') return a.order - b.order
+          const da = a.deal && a.deal.under ? a.deal.pct : -1
+          const db = b.deal && b.deal.under ? b.deal.pct : -1
+          return db - da || a.order - b.order
+        })
+        return list
+      }
+      const money = (n, cur) => `${Number(n).toLocaleString()} ${cur === 3 ? '\u{1F48E}' : 'gems'}`
+
+      function renderDen () {
+        const box = $('den')
+        if (!api()) { box.innerHTML = '<span class="meta">Turn on <b>My Shop Restocker</b> in Plugins. Shop Explorer uses it to read shops.</span>'; return }
+        if (!snap.owner) { box.innerHTML = '<span class="meta">Go into someone’s den. JR reads their shops as you walk in.</span>'; return }
+        const checked = snap.stands.filter(s => s.items).length
+        const chips = snap.stands.map(s => `<button class="chip ${s.items ? 'done' : ''} ${onlyStand === s.id ? 'on' : ''}" data-stand="${s.id}" title="${s.items ? `${s.items.length} item${s.items.length === 1 ? '' : 's'}. Click to show only this shop.` : 'Not opened yet. Click to open just this one.'}">Shop ${s.number}${s.items ? ` · ${s.items.length}` : ''}</button>`).join('')
+        box.innerHTML = `<div><div class="who">${escape(snap.owner)}’s den</div><div class="meta">${snap.stands.length ? `${snap.stands.length} My Shop${snap.stands.length === 1 ? '' : 's'}, numbered left to right` : 'No My Shops here'}${snap.here ? '' : ' · you’ve left this den'}</div></div>
+          <div class="chips">${chips}</div><span class="sp"></span>
+          ${snap.scan
+            ? `<span class="meta">${snap.scan.stopping ? 'Stopping\u2026' : `Opening shop ${Math.min(snap.scan.total, snap.scan.done + 1)} of ${snap.scan.total}\u2026`}</span><button id="stopScan" ${snap.scan.stopping ? 'disabled' : ''}>Stop</button>`
+            : `<button class="primary" id="scan" ${!snap.here || !snap.stands.length || scanning ? 'disabled' : ''}>${scanning ? 'Opening\u2026' : checked ? 'Scan again' : `Scan ${snap.stands.length} shop${snap.stands.length === 1 ? '' : 's'}`}</button>`}`
+      }
+      function renderTable () {
+        const list = shown()
+        const total = allItems().length
+        const box = $('table')
+        $('copy').disabled = !list.length
+        $('count').textContent = total ? `${list.length} of ${total} item${total === 1 ? '' : 's'}${onlyStand ? ' in one shop' : ''}` : ''
+        if (!list.length) {
+          box.innerHTML = `<div class="empty">${!snap.owner ? 'Nothing yet.' : !snap.stands.some(s => s.items) ? 'Press Scan to see what’s for sale.' : 'Nothing matches these filters.'}</div>`
+          return
+        }
+        const head = '<div class="it head"><span>Item</span><span>Shop</span><span style="text-align:right">Price</span><span style="text-align:right">Wiki</span></div>'
+        box.innerHTML = head + list.map(it => {
+          const tag = it.deal && it.deal.under ? `<span class="tag deal">${it.deal.pct}% under</span>` : it.deal && it.deal.pct >= 25 ? `<span class="tag over">${it.deal.pct}% over</span>` : ''
+          return `<div class="it"><div class="n" title="${escape(it.name)}">${escape(it.name)}<span class="k">${it.kind === 'den' ? 'den' : it.kind}</span></div><span class="shop">Shop ${it.shop}</span><span class="price">${money(it.cost, it.currency)}</span><span class="wiki">${it.wiki ? escape(it.wiki.text.replace(/^≈\s*/, '≈')) : it.kind === 'pet' ? '' : '—'}${tag}</span></div>`
+        }).join('')
+      }
+      function refresh (force) {
+        const a = api()
+        snap = a && typeof a.explorer === 'function' ? a.explorer() : { owner: null, stands: [], here: false, scan: null }
+        if (onlyStand && !snap.stands.some(s => s.id === onlyStand)) onlyStand = null
+        const key = JSON.stringify(snap) + onlyStand + scanning + (getPricer() ? 'p' : '')
+        if (!force && key === lastKey) return
+        lastKey = key
+        renderDen(); renderTable()
+      }
+
+      /* ---------------------------------------------------- actions */
+      async function run (fn, done) {
+        if (scanning) return
+        scanning = true
+        refresh(true)
+        try { const r = await fn(api()); setStatus(done(r)) } catch (error) { setStatus(error.message, true) }
+        scanning = false
+        refresh(true)
+      }
+      $('den').addEventListener('click', (e) => {
+        if (e.target.id === 'stopScan') { const a = api(); if (a && a.stopScan) a.stopScan(); return refresh(true) }
+        if (e.target.id === 'scan') {
+          setStatus('Opening each shop\u2026 Keep the shop windows in Animal Jam closed while JR scans.')
+          return run(a => a.scanDen(), r => `${r.stopped ? 'Stopped. ' : ''}Read ${r.shops} shop${r.shops === 1 ? '' : 's'}: ${r.items} item${r.items === 1 ? '' : 's'} for sale.${r.failed ? ` ${r.failed} didn\u2019t answer; click ${r.failed === 1 ? 'its chip' : 'their chips'} to try again.` : ''}`)
+        }
+        const chip = e.target.closest('[data-stand]')
+        if (!chip) return
+        const id = Number(chip.dataset.stand)
+        const st = snap.stands.find(s => s.id === id)
+        if (st && st.items) { onlyStand = onlyStand === id ? null : id; return refresh(true) }
+        run(a => a.browseShop(id), r => `Shop ${st ? st.number : ''}: ${r.items.length} item${r.items.length === 1 ? '' : 's'}.`)
+      })
+      for (const id of ['search', 'kind', 'sort', 'dealsOnly']) {
+        $(id).addEventListener('input', () => {
+          if (id !== 'search') store.set(id, id === 'dealsOnly' ? $(id).checked : $(id).value)
+          refresh(true)
+        })
+      }
+      $('copy').onclick = () => {
+        const cell = (v) => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
+        const rows = [['Item', 'Type', 'Shop', 'Price', 'Currency', 'Wiki (Diamonds)', 'Vs wiki']]
+        for (const it of shown()) rows.push([it.name, it.kind, it.shop, it.cost, it.currency === 3 ? 'Diamonds' : 'Gems', it.wiki ? `${Math.round(it.wiki.range.min)}-${Math.round(it.wiki.range.max)}` : '', it.deal ? `${it.deal.under ? '-' : '+'}${it.deal.pct}%` : ''])
+        require('electron').clipboard.writeText(rows.map(r => r.map(cell).join(',')).join('\n'))
+        setStatus(`Copied ${rows.length - 1} item${rows.length === 2 ? '' : 's'}. Paste into Excel or Google Sheets.`)
+      }
+
+      refresh(true)
+      setInterval(() => refresh(false), 1000)
+    })().catch((error) => {
+      const status = document.getElementById('status')
+      status.textContent = "Shop Explorer couldn't start: " + error.message
+      status.className = 'error'
+    })
+  </script>
+</body>
+</html>

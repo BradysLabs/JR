@@ -63,7 +63,7 @@ The page gets `window.jam`:
 | | |
 |---|---|
 | `jam.dispatch` | Packets, state and hooks (below). |
-| `jam.application` | `consoleMessage()`, settings and item names (`jam.application.items`). |
+| `jam.application` | `consoleMessage()`, `notify()`, settings and item names (`jam.application.items`). |
 | `jam.onPacket(fn)` | Watch every packet. |
 | `jam.storage`, `jam.dataPath` | Saved data for this profile. |
 
@@ -134,3 +134,7 @@ Packets to the server are limited to 20 per second by default. Extra packets wai
 | `dispatch.wait(ms)` | Waits `ms` milliseconds. |
 | `dispatch.setInterval(fn, ms)` / `dispatch.clearInterval(id)` | Intervals JR stops on disconnect. |
 | `application.consoleMessage({ message, type })` | Prints to JR's Logs. `type`: `success`, `error`, `warn`, `notify`. |
+| `application.recentRooms()` | Rooms you've been in since logging in, newest first: `[{ name, id, at, den }]`. |
+| `application.notify({ title, body, force })` | Shows a desktop notification when JR isn't the window in front (`force: true` shows it anyway). Does nothing if the user turned notifications off in Settings; returns `false` then. Keep these for things worth interrupting someone for. |
+
+If a window plugin throws an error it doesn't catch (including inside `async` code), JR shows it at the bottom of the plugin's window, in Logs, and on its card in Plugins. Opening the plugin again clears it.

@@ -1,0 +1,9 @@
+{
+  "name": "Recent Rooms",
+  "description": "Every room and den you've been in since you logged in. Click one to go back.",
+  "category": "Explore",
+  "icon": "fa-history",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

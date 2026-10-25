@@ -1,0 +1,83 @@
+{
+  "0.1.0": {
+    "date": "2026-10",
+    "items": [
+      {
+        "title": "Wiki prices in My Shop Templates",
+        "text": "Each item shows its Item Worth Wiki value. Set one price, or every price in a template, to the wiki value in one click."
+      },
+      {
+        "title": "Better item values",
+        "text": "Worth checks tell item colors apart using the wiki's own pictures, so Headdresses and other color-sensitive items are valued correctly."
+      },
+      {
+        "title": "Sales Log",
+        "text": "My Shop Templates keeps every sale, with totals for today, the last week and all time. Copy it into a spreadsheet in one click."
+      },
+      {
+        "title": "Shop Explorer",
+        "text": "Walk into any den and scan every My Shop at once. See everything for sale with wiki values, and spot items priced under the wiki."
+      },
+      {
+        "title": "Recycle Tool",
+        "text": "Save presets of items you don't want, like an adventure's junk prizes, and recycle them all in one click, or automatically while you farm. Share presets with friends. Worn, shop and placed items are never touched."
+      },
+      {
+        "title": "Outfits",
+        "text": "Save the clothes you're wearing and put them back on in one click."
+      },
+      {
+        "title": "Bulk Buy",
+        "text": "Buy one of something in the game, then buy as many more of that exact item and color as you want."
+      },
+      {
+        "title": "Recent Rooms",
+        "text": "Every room and den you've been in since logging in. Click one to go back."
+      },
+      {
+        "title": "Auto Advertise",
+        "text": "Say your shop ads in chat on a timer, never faster than every 30 seconds."
+      },
+      {
+        "title": "Den Shop",
+        "text": "A new plugin to buy dens directly, for Gems or Diamonds."
+      },
+      {
+        "title": "Tiki Trouble and Gem Farm",
+        "text": "Adventures can now run Tiki Trouble on your own: leave the host empty. Gem Farm is a new plugin that collects adventure gem prizes on repeat."
+      },
+      {
+        "title": "Bitter Sweets is back",
+        "text": "Adventures can claim Bitter Sweets reward goals directly. Tick the goals you want and JR claims just those."
+      },
+      {
+        "title": "My Shop fixes",
+        "text": "JR and the game no longer mix up each other's shop replies, and shop stands are found correctly in dens with mannequins."
+      },
+      {
+        "title": "Packet Spammer works again",
+        "text": "Add to list and Send now do something again. If a plugin breaks, JR now tells you instead of failing silently."
+      },
+      {
+        "title": "Network tab upgrades",
+        "text": "Hide noisy packets, click a packet to see all of it, and right-click to copy it or send it to the Packet Spammer."
+      },
+      {
+        "title": "Console",
+        "text": "Press Tab to finish a command name. Your command history is kept between launches."
+      },
+      {
+        "title": "Windows remember",
+        "text": "Each profile reopens at the size and spot you left it, with the plugins you had open. Zoom with Ctrl + and Ctrl -, and Ctrl 0 to reset."
+      },
+      {
+        "title": "Desktop notifications",
+        "text": "Get a notification when an item sells from your shop while JR is in the background. Turn it off in Settings."
+      },
+      {
+        "title": "Report a bug",
+        "text": "Save a bug report from Logs or Settings and drop it in the JR Discord."
+      }
+    ]
+  }
+}

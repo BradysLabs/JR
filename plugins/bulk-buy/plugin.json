@@ -1,0 +1,9 @@
+{
+  "name": "Bulk Buy",
+  "description": "Buy something once in Animal Jam, then buy more of exactly that item and color in one go.",
+  "category": "Tools",
+  "icon": "fa-shopping-cart",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

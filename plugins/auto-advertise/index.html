@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Auto Advertise</title>
+  <style>
+    :root { --bg: #0b0b0c; --panel: #111113; --line: #1f1f22; --line2: #2f2f34; --line3: #45454b; --text: #ededee; --dim: #a6a6ac; --faint: #6c6c72; --good: #4ade80; --warn: #fbbf24; --bad: #f87171; --mono: ui-monospace, "JetBrains Mono", Consolas, monospace; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 100vh; }
+    h1 { font-size: 16px; font-weight: 650; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line2); }
+    .dot.on { background: var(--good); box-shadow: 0 0 8px var(--good); }
+    .sub { color: var(--faint); font-size: 12px; margin-top: 3px; line-height: 1.5; }
+    .warn { color: var(--warn); font-size: 12px; border: 1px solid #5c4813; border-radius: 10px; padding: 8px 10px; line-height: 1.5; }
+    textarea, input, select { background: var(--panel); color: var(--text); border: 1px solid var(--line2); border-radius: 9px; font: inherit; outline: none; }
+    textarea { width: 100%; min-height: 110px; resize: vertical; padding: 8px 10px; line-height: 1.6; }
+    input, select { height: 32px; padding: 0 10px; }
+    input[type=number] { width: 70px; font-family: var(--mono); }
+    textarea:focus, input:focus, select:focus { border-color: #5a5a60; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .row label { color: var(--dim); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .sp { flex: 1; }
+    button { height: 34px; padding: 0 16px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: var(--text); border: 1px solid var(--line2); }
+    button.primary { background: #f4f4f5; color: #0b0b0c; border: 0; }
+    button:disabled { opacity: .4; cursor: default; }
+    .live { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 12px; font-size: 12px; color: var(--dim); }
+    .live b { color: var(--text); font-weight: 600; }
+    .count { color: var(--faint); font-size: 11.5px; }
+    #status { font-size: 12px; color: var(--faint); min-height: 18px; }
+    #status.error { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <div>
+    <h1><span class="dot" id="dot"></span>Auto Advertise</h1>
+    <div class="sub">Says your ads in the room's chat on a timer while this window is open. One message per line.</div>
+  </div>
+  <div class="warn">Saying the same thing over and over can get you muted or reported. Keep gaps long and messages friendly. JR never sends faster than every 30 seconds.</div>
+  <textarea id="messages" spellcheck="true" placeholder="Selling rare spikes, come to my den!&#10;Trading headdresses, check my shop"></textarea>
+  <div class="count" id="count"></div>
+  <div class="row">
+    <label>Every <input id="min" type="number" min="30" value="60"> to <input id="max" type="number" min="30" value="90"> seconds</label>
+    <label>Order <select id="order"><option value="rotate">Take turns</option><option value="random">Random</option></select></label>
+  </div>
+  <div class="row">
+    <label><input id="stay" type="checkbox" checked> Stop if I leave this room</label>
+    <label title="Turns on JR's Anti-kick setting, so you aren't logged out for idling while you advertise"><input id="antiKick" type="checkbox"> Don't get kicked for idling</label>
+    <span class="sp"></span>
+    <button id="stop" disabled>Stop</button>
+    <button id="start" class="primary">Start</button>
+  </div>
+  <div class="live" id="live" style="display:none"></div>
+  <div id="status"></div>
+  <script>
+    (async () => {
+      const $ = (id) => document.getElementById(id)
+      const setStatus = (text, isError) => { $('status').textContent = text || ''; $('status').className = isError ? 'error' : '' }
+      const jam = window.jam || await new Promise(resolve => {
+        const t = setInterval(() => { if (window.jam) { clearInterval(t); resolve(window.jam) } }, 25)
+      })
+      const path = require('path')
+      const { Advertiser, cleanMessage, MIN_GAP, MAX_LENGTH } = require(path.join(__dirname, 'advertise.js'))
+      const store = jam.storage
+      const settings = jam.application && jam.application.settings
+
+      $('messages').value = store.get('messages', '')
+      $('min').value = store.get('min', 60)
+      $('max').value = store.get('max', 90)
+      $('order').value = store.get('order', 'rotate')
+      $('stay').checked = store.get('stay', true)
+      $('antiKick').checked = !!(settings && settings.get('antiKick'))
+      const lines = () => $('messages').value.split('\n').map(cleanMessage).filter(Boolean)
+      const saveAll = () => {
+        store.set('messages', $('messages').value)
+        store.set('min', Math.max(MIN_GAP, Number($('min').value) || 60))
+        store.set('max', Math.max(MIN_GAP, Number($('max').value) || 90))
+        store.set('order', $('order').value)
+        store.set('stay', $('stay').checked)
+      }
+      for (const id of ['messages', 'min', 'max', 'order', 'stay']) $(id).addEventListener('change', saveAll)
+      $('messages').addEventListener('input', () => {
+        const long = $('messages').value.split('\n').filter(l => l.trim().length > MAX_LENGTH).length
+        $('count').textContent = `${lines().length} message${lines().length === 1 ? '' : 's'}${long ? ` · ${long} too long, cut to ${MAX_LENGTH} characters` : ''}`
+      })
+      $('messages').dispatchEvent(new Event('input'))
+      $('antiKick').onchange = () => { if (settings) settings.set('antiKick', $('antiKick').checked) }
+
+      function render () {
+        const run = ad.running
+        $('dot').classList.toggle('on', !!run)
+        $('start').disabled = !!run
+        $('stop').disabled = !run
+        for (const id of ['messages', 'min', 'max', 'order', 'stay']) $(id).disabled = !!run
+        $('live').style.display = run ? '' : 'none'
+        if (run) {
+          const secs = Math.max(0, Math.round((run.next - Date.now()) / 1000))
+          const esc = (t) => String(t || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+          $('live').innerHTML = `Sent <b>${run.sent}</b> \u00b7 shown in chat <b>${run.shown}</b> \u00b7 next in <b>${secs}s</b><br>Last: ${esc(run.last)}` +
+            (run.blocked ? `<br><span style="color:var(--warn)">\u201c${esc(run.lastBlocked)}\u201d didn\u2019t show up in chat. Animal Jam\u2019s chat filter probably blocked a word in it; try rewording it.</span>` : '')
+        } else if (ad.stoppedBecause) {
+          setStatus(ad.stoppedBecause, true); ad.stoppedBecause = null
+        }
+      }
+      const ad = new Advertiser({ dispatch: jam.dispatch, onChange: render })
+      setInterval(() => { if (ad.running) render() }, 1000)
+
+      $('start').onclick = () => {
+        saveAll()
+        try {
+          ad.start({ messages: lines(), min: Number($('min').value), max: Number($('max').value), order: $('order').value, stayInRoom: $('stay').checked })
+          setStatus('Advertising. Keep this window open.')
+        } catch (error) { setStatus(error.message, true) }
+        render()
+      }
+      $('stop').onclick = () => { ad.stop(); setStatus('Stopped.'); render() }
+      window.addEventListener('beforeunload', () => ad.dispose())
+      render()
+    })().catch((error) => {
+      const status = document.getElementById('status')
+      status.textContent = "Auto Advertise couldn't start: " + error.message
+      status.className = 'error'
+    })
+  </script>
+</body>
+</html>

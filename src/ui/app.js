@@ -2,7 +2,7 @@
 
 /* JR profile window. */
 
-const { ipcRenderer, shell } = require('electron')
+const { ipcRenderer, shell, webFrame, clipboard } = require('electron')
 const path = require('path')
 
 const $ = (id) => document.getElementById(id)
@@ -15,6 +15,8 @@ const engine = require(path.join(info.root, 'src', 'ui', 'engine.js'))(info)
 window.jr = engine // handy in DevTools
 const themes = require(path.join(info.root, 'src', 'ui', 'themes.js'))
 themes.applyTheme(document, engine.settings.theme)
+const qol = require(path.join(info.root, 'src', 'ui', 'qol.js'))
+try { webFrame.setZoomFactor(Number(engine.settings.zoom) || 1) } catch (_) {}
 const worthTools = require(path.join(info.root, 'src', 'worth', 'match.js'))
 const valueTools = require(path.join(info.root, 'src', 'worth', 'value.js'))
 let worthByName = new Map()
@@ -65,7 +67,24 @@ document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && !e.shiftKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); go(PAGES[Number(e.key) - 1]) }
   if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); go('home'); $('search').focus(); $('search').select() }
   if (e.key === 'F12') ipcRenderer.send('win', 'devtools')
+  // Zoom: Ctrl + / Ctrl - / Ctrl 0
+  if (e.ctrlKey && !e.altKey && ['=', '+', '-', '_', '0'].includes(e.key)) {
+    e.preventDefault()
+    const zoom = qol.nextZoom(engine.settings.zoom, e.key === '0' ? 0 : (e.key === '-' || e.key === '_') ? -1 : 1)
+    webFrame.setZoomFactor(zoom)
+    engine.updateSettings({ zoom })
+    toast(`Zoom ${Math.round(zoom * 100)}%`)
+  }
+  if (e.key === 'Escape') { hideMenu(); ['packetModal', 'newsModal'].forEach(id => { if (!$(id).classList.contains('hidden')) closeModal(id) }) }
 })
+window.addEventListener('wheel', (e) => {
+  if (!e.ctrlKey) return
+  e.preventDefault()
+  const zoom = qol.nextZoom(engine.settings.zoom, e.deltaY < 0 ? 1 : -1)
+  if (zoom === engine.settings.zoom) return
+  webFrame.setZoomFactor(zoom)
+  engine.updateSettings({ zoom })
+}, { passive: false })
 
 function renderStatus () {
   const connected = engine.dispatch.connected
@@ -81,6 +100,7 @@ function renderStatus () {
   $('statusDetail').textContent = '· ' + bits.join(' · ')
   $('playBtn').classList.toggle('playing', playing)
   $('playLabel').textContent = playing ? 'Playing' : 'Play'
+  renderOverview()
   // Discord Rich Presence (the room is left out in streaming mode).
   const presenceRoom = connected && room && !engine.application.streamingMode.enabled ? prettyRoom(room) : undefined
   ipcRenderer.send('presence', { connected, playing, room: presenceRoom })
@@ -128,6 +148,22 @@ function renderPins () {
     box.appendChild(c)
   }
 }
+
+function renderOverview () {
+  const list = engine.host.list()
+  const ready = list.filter(p => p.status === 'ready' || p.status === 'running').length
+  const waiting = list.filter(p => p.status === 'needs-approval' || p.status === 'changed').length
+  const connected = engine.dispatch.connected
+  const playing = engine.gameRunning
+  $('overviewDot').className = 'overview-dot' + (connected ? ' on' : playing ? ' wait' : '')
+  $('overviewGame').textContent = connected ? 'Connected' : playing ? 'Starting…' : 'Not connected'
+  $('overviewPlugins').textContent = `${ready} / ${list.length}`
+  const review = $('overviewReview')
+  review.classList.toggle('hidden', !waiting)
+  review.textContent = waiting ? `${waiting} plugin${waiting === 1 ? '' : 's'} need review` : ''
+  review.onclick = () => { pluginFilter = 'review'; go('plugins') }
+}
+$('overviewBrowse').onclick = () => go('plugins')
 
 function setTicker (e) {
   $('tickT').textContent = time(e.t)
@@ -187,6 +223,7 @@ $('search').onkeydown = (e) => {
 
 let cat = 'All'
 let pluginQuery = ''
+let pluginFilter = 'all'
 const STATUS_TEXT = { running: 'On', ready: '', 'needs-approval': 'Needs your OK', changed: 'Changed, needs your OK', off: 'Off', error: 'Error' }
 
 async function usePlugin (p) {
@@ -208,25 +245,63 @@ function renderPlugins () {
     b.onclick = () => { cat = c; renderPlugins() }
     catBox.appendChild(b)
   }
+  const filters = [
+    ['all', 'All'],
+    ['favorites', 'Favorites'],
+    ['enabled', 'Enabled'],
+    ['review', `Needs review${waiting.length ? ` · ${waiting.length}` : ''}`]
+  ]
+  const filterBox = $('pluginFilters')
+  filterBox.innerHTML = ''
+  for (const [id, label] of filters) {
+    const b = el('button', pluginFilter === id ? 'on' : '', label)
+    b.setAttribute('aria-pressed', String(pluginFilter === id))
+    b.onclick = () => { pluginFilter = id; renderPlugins() }
+    filterBox.appendChild(b)
+  }
   const grid = $('grid')
   grid.innerHTML = ''
   const open = engine.openWindows
   const shown = [...waiting, ...list.filter(p => !waiting.includes(p))]
     .filter(p => cat === 'All' || (p.category || 'Other') === cat)
+    .filter(p => pluginFilter === 'all' || (pluginFilter === 'favorites' && engine.settings.pinned.includes(p.id)) || (pluginFilter === 'enabled' && ['ready', 'running'].includes(p.status)) || (pluginFilter === 'review' && ['needs-approval', 'changed'].includes(p.status)))
     .filter(p => !pluginQuery || `${p.name} ${p.description} ${p.author}`.toLowerCase().includes(pluginQuery))
-  if (!shown.length) grid.appendChild(el('div', 'empty-page', 'No plugins here.'))
+  $('pluginCount').textContent = `${shown.length} of ${list.length} shown`
+  if (!shown.length) {
+    const empty = el('div', 'empty-page')
+    const message = pluginQuery ? `No plugins match “${pluginQuery}”.` : pluginFilter === 'review' ? 'You’re all caught up. No plugins need review.' : pluginFilter === 'favorites' ? 'No favorites yet. Star a plugin to keep it close.' : 'No plugins in this category.'
+    empty.appendChild(el('div', null, message))
+    if (pluginQuery) {
+      const clear = el('button', 'btn small', 'Clear search')
+      clear.onclick = () => { $('pluginSearch').value = ''; pluginQuery = ''; renderPlugins() }
+      empty.appendChild(clear)
+    } else if (pluginFilter === 'favorites') {
+      const showAll = el('button', 'btn small', 'Browse all plugins')
+      showAll.onclick = () => { pluginFilter = 'all'; renderPlugins() }
+      empty.appendChild(showAll)
+    }
+    grid.appendChild(empty)
+  }
   for (const p of shown) {
     const isWaiting = p.status === 'needs-approval' || p.status === 'changed'
-    const card = el('div', 'pcard ' + p.status + (isWaiting ? ' waiting' : ''))
+    const windowError = engine.pluginErrors.get(p.id)
+    const card = el('div', 'pcard ' + p.status + (isWaiting ? ' waiting' : '') + (windowError ? ' has-error' : ''))
     const top = el('div', 'top')
     if (open.has(p.id) || p.status === 'running') { const live = el('div', 'live'); live.title = open.has(p.id) ? 'Window open' : 'Running'; top.appendChild(live) }
-    top.append(el('div', 'name', p.name), el('div', 'cat', String(p.category || 'Other').toUpperCase()))
+    top.append(el('div', 'name', p.name))
+    if (windowError) { const badge = el('div', 'perr', 'ERROR'); badge.title = windowError; top.appendChild(badge) }
+    top.append(el('div', 'cat', String(p.category || 'Other').toUpperCase()))
     card.appendChild(top)
+    if (windowError) {
+      const line = el('div', 'perr-line', windowError)
+      line.title = `${windowError}\n\nOpening the plugin again clears this. If it keeps happening, use Report a bug.`
+      card.appendChild(line)
+    }
     if (isWaiting) {
       card.appendChild(el('div', 'desc', `${p.status === 'changed' ? 'This plugin changed since you allowed it.' : 'New plugin' + (p.author ? ` by ${p.author}` : '')}. Plugins can send packets as you, so only allow ones you trust.`))
     } else if (p.status === 'error') {
       card.appendChild(el('div', 'desc', p.errors.join(' ') || 'This plugin has a problem.'))
-    } else {
+    } else if (!windowError) {
       card.appendChild(el('div', 'desc', p.description || ''))
     }
     const row = el('div', 'row')
@@ -598,39 +673,156 @@ syncTradeSwitch()
 let logTab = 'console'
 let netPaused = false
 let netFilter = ''
+let packetMatches = qol.packetFilter({ hide: engine.settings.netHide })
+const updatePacketFilter = () => { packetMatches = qol.packetFilter({ show: netFilter, hide: engine.settings.netHide }) }
 document.querySelectorAll('#logTabs button').forEach(b => {
   b.onclick = () => {
     logTab = b.dataset.tab
     document.querySelectorAll('#logTabs button').forEach(x => x.classList.toggle('on', x === b))
-    $('netFilter').classList.toggle('hidden', logTab !== 'network')
-    $('pauseNet').classList.toggle('hidden', logTab !== 'network')
+    for (const id of ['netFilter', 'netHide', 'pauseNet']) $(id).classList.toggle('hidden', logTab !== 'network')
     renderLogs()
   }
 })
 $('pauseNet').classList.add('hidden')
 $('pauseNet').onclick = () => { netPaused = !netPaused; $('pauseNet').textContent = netPaused ? 'Resume' : 'Pause'; if (!netPaused) renderLogs() }
-$('netFilter').oninput = () => { netFilter = $('netFilter').value.trim().toLowerCase(); renderLogs() }
+$('netFilter').oninput = () => { netFilter = $('netFilter').value.trim().toLowerCase(); updatePacketFilter(); renderLogs() }
+$('netHide').value = engine.settings.netHide || ''
+$('netHide').oninput = () => { engine.updateSettings({ netHide: $('netHide').value }); updatePacketFilter(); renderLogs() }
 $('clearLogs').onclick = () => { if (logTab === 'console') engine.logs.length = 0; else engine.packets.length = 0; renderLogs() }
+
+// Text that's safe to copy or share: no login tokens or emails, and your
+// username hidden too when streaming mode is on.
+const shareable = (text) => engine.application.hideSecrets(engine.application.streamingMode.mask(text))
+const levelName = (type) => (type === 'notify' ? 'info' : type === 'success' ? 'ok' : type)
+const logLine = (e) => `${time(e.t)} ${levelName(e.type).toUpperCase()} ${engine.application.streamingMode.mask(e.message)}`
+const visibleLogs = () => engine.logs.slice(-400)
+const visiblePackets = () => engine.packets.filter(packetMatches).slice(-300)
+
+function copyText (text, what) {
+  clipboard.writeText(String(text))
+  toast(`Copied ${what}.`)
+}
 
 function logRow (e) {
   const r = el('div', 'lrow ' + e.type)
-  r.append(el('span', 't', time(e.t)), el('span', 'lv', e.type === 'notify' ? 'info' : e.type === 'success' ? 'ok' : e.type), el('span', 'msg', engine.application.streamingMode.mask(e.message)))
+  r.append(el('span', 't', time(e.t)), el('span', 'lv', levelName(e.type)), el('span', 'msg', engine.application.streamingMode.mask(e.message)))
+  r.oncontextmenu = (ev) => {
+    ev.preventDefault()
+    const selected = String(window.getSelection() || '')
+    showMenu(ev.clientX, ev.clientY, [
+      selected ? ['Copy selection', () => copyText(selected, 'the selection')] : null,
+      ['Copy this line', () => copyText(logLine(e), 'the line')],
+      ['Copy everything shown', () => copyText(visibleLogs().map(logLine).join('\n'), `${visibleLogs().length} lines`)]
+    ])
+  }
   return r
 }
 function packetRow (p) {
   const r = el('div', `prow ${p.direction}${p.fromPlugin ? ' plugin' : ''}${p.blocked ? ' blocked' : ''}`)
-  r.append(el('span', 'd', p.direction === 'in' ? '↓' : '↑'), el('span', 'ty', p.type || p.format), el('span', 'raw', engine.application.hideSecrets(engine.application.streamingMode.mask(p.raw))))
-  r.title = p.raw.length > 400 ? p.raw.slice(0, 400) + '…' : p.raw
+  r.append(el('span', 'd', p.direction === 'in' ? '↓' : '↑'), el('span', 'ty', p.type || p.format), el('span', 'raw', shareable(p.raw)))
+  r.title = 'Click to see the whole packet. Right-click for more.'
+  r.onclick = () => { if (!String(window.getSelection() || '')) inspectPacket(p) }
+  r.oncontextmenu = (ev) => {
+    ev.preventDefault()
+    const type = p.type || ''
+    showMenu(ev.clientX, ev.clientY, [
+      ['Copy packet', () => copyText(shareable(p.raw), 'the packet')],
+      ['Send to Packet Spammer', () => sendToSpammer(p)],
+      ['See the whole packet', () => inspectPacket(p)],
+      '-',
+      type ? [`Hide “${type}” packets`, () => hidePacketType(type)] : null,
+      type ? [`Show only “${type}” packets`, () => { $('netFilter').value = type; netFilter = type.toLowerCase(); updatePacketFilter(); renderLogs() }] : null,
+      '-',
+      ['Copy everything shown', () => copyText(visiblePackets().map(x => shareable(x.raw)).join('\n'), `${visiblePackets().length} packets`)]
+    ])
+  }
   return r
 }
-const packetMatches = (p) => !netFilter || (p.type || '').toLowerCase() === netFilter || p.raw.toLowerCase().includes(netFilter)
+function hidePacketType (type) {
+  const hide = qol.addHideTerm(engine.settings.netHide, type)
+  engine.updateSettings({ netHide: hide })
+  $('netHide').value = hide
+  updatePacketFilter()
+  renderLogs()
+  toast(`Hiding “${type}” packets. Edit the Hide box to undo.`)
+}
+$('copyLogs').onclick = () => {
+  if (logTab === 'console') copyText(visibleLogs().map(logLine).join('\n'), `${visibleLogs().length} lines`)
+  else copyText(visiblePackets().map(x => shareable(x.raw)).join('\n'), `${visiblePackets().length} packets`)
+}
+
+/* Right-click menu */
+function showMenu (x, y, items) {
+  const menu = $('ctxMenu')
+  menu.innerHTML = ''
+  const list = items.filter(Boolean).filter((it, i, a) => it !== '-' || (i > 0 && i < a.length - 1 && a[i - 1] !== '-'))
+  for (const it of list) {
+    if (it === '-') { menu.appendChild(el('hr')); continue }
+    const b = el('button', null, it[0])
+    b.setAttribute('role', 'menuitem')
+    b.onclick = () => { hideMenu(); attempt(it[1])() }
+    menu.appendChild(b)
+  }
+  menu.classList.remove('hidden')
+  const w = menu.offsetWidth; const h = menu.offsetHeight
+  menu.style.left = Math.max(6, Math.min(x, window.innerWidth - w - 6)) + 'px'
+  menu.style.top = Math.max(6, Math.min(y, window.innerHeight - h - 6)) + 'px'
+}
+function hideMenu () { $('ctxMenu').classList.add('hidden') }
+document.addEventListener('mousedown', (e) => { if (!$('ctxMenu').contains(e.target)) hideMenu() })
+window.addEventListener('blur', hideMenu)
+$('logbox').addEventListener('scroll', hideMenu)
+
+/* Packet inspector */
+let inspected = null
+function inspectPacket (p) {
+  inspected = p
+  $('packetTitle').textContent = `${p.direction === 'in' ? 'From Animal Jam' : 'To Animal Jam'} · ${p.type || p.format || 'packet'}`
+  const bits = [new Date(p.timestamp || Date.now()).toLocaleTimeString(), `${String(p.raw).length.toLocaleString()} characters`]
+  if (p.fromPlugin) bits.push('sent by a plugin')
+  if (p.blocked) bits.push('blocked')
+  $('packetMeta').textContent = bits.join(' · ')
+  $('packetFull').textContent = shareable(p.raw)
+  $('packetModal').classList.remove('hidden')
+}
+function closeModal (id) { $(id).classList.add('hidden'); if (id === 'newsModal') markNewsSeen() }
+$('packetClose').onclick = () => closeModal('packetModal')
+$('packetCopy').onclick = () => { if (inspected) copyText(shareable(inspected.raw), 'the packet') }
+$('packetSpam').onclick = attempt(async () => { if (inspected) { closeModal('packetModal'); await sendToSpammer(inspected) } })
+$('packetModal').addEventListener('click', (e) => { if (e.target === $('packetModal')) closeModal('packetModal') })
+
+/** Opens the Packet Spammer with this packet typed in, ready to send. */
+async function sendToSpammer (p) {
+  const id = 'packet-spammer'
+  const plugin = engine.host.list().find(x => x.id === id)
+  if (!plugin || plugin.status !== 'ready') throw new Error('The Packet Spammer is off. Turn it on in Plugins.')
+  engine.openPlugin(id)
+  // Never hand a login token to the spammer; usernames stay so the packet still works.
+  const text = engine.application.hideSecrets(p.raw)
+  for (let i = 0; i < 100; i++) {
+    const w = engine.pluginWindow(id)
+    const doc = w && w.document
+    const box = doc && doc.readyState === 'complete' && doc.getElementById('packets')
+    if (box) {
+      box.value = box.value.trim() ? box.value.replace(/\s*$/, '\n') + text : text
+      const to = doc.getElementById('to')
+      if (to) to.value = p.direction === 'in' ? 'game' : 'server'
+      box.focus()
+      toast('Sent to the Packet Spammer.')
+      return
+    }
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  throw new Error('Couldn\u2019t reach the Packet Spammer window.')
+}
+
 function renderLogs () {
   if (page !== 'logs') return
   const box = $('logbox')
   box.innerHTML = ''
   const frag = document.createDocumentFragment()
-  if (logTab === 'console') engine.logs.slice(-400).forEach(e => frag.appendChild(logRow(e)))
-  else engine.packets.filter(packetMatches).slice(-300).forEach(p => frag.appendChild(packetRow(p)))
+  if (logTab === 'console') visibleLogs().forEach(e => frag.appendChild(logRow(e)))
+  else visiblePackets().forEach(p => frag.appendChild(packetRow(p)))
   box.appendChild(frag)
   box.scrollTop = box.scrollHeight
 }
@@ -648,16 +840,27 @@ engine.events.on('log', (e) => {
 engine.events.on('packet', (p) => {
   if (page === 'logs' && logTab === 'network' && !netPaused && packetMatches(p)) appendRow(packetRow(p))
 })
-const cmdHistory = []
-let hIdx = 0
+// Command history is saved with the profile, so the up arrow works after a restart.
+let cmdHistory = qol.pushHistory(engine.settings.cmdHistory, '')
+let hIdx = cmdHistory.length
 $('cmd').onkeydown = attempt(async (e) => {
   if (e.key === 'ArrowUp' && cmdHistory.length) { hIdx = Math.max(0, hIdx - 1); $('cmd').value = cmdHistory[hIdx]; e.preventDefault(); return }
   if (e.key === 'ArrowDown' && cmdHistory.length) { hIdx = Math.min(cmdHistory.length, hIdx + 1); $('cmd').value = cmdHistory[hIdx] || ''; e.preventDefault(); return }
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    // Like a terminal: finish what's typed; if it can't go further, list the choices.
+    const typed = $('cmd').value
+    const { value, matches } = qol.completeCommand(typed, ['help', ...engine.dispatch.commands.keys()])
+    $('cmd').value = value
+    if (matches.length > 1 && value === typed) engine.log({ type: 'notify', message: 'Commands: ' + matches.join(', ') })
+    return
+  }
   if (e.key !== 'Enter') return
   const line = $('cmd').value.trim()
   if (!line) return
   $('cmd').value = ''
-  cmdHistory.push(line); hIdx = cmdHistory.length
+  cmdHistory = qol.pushHistory(cmdHistory, line); hIdx = cmdHistory.length
+  engine.updateSettings({ cmdHistory })
   if (line === 'help' || line === 'commands') {
     const list = [...engine.dispatch.commands.values()].map(c => `${c.name}${c.description ? ' – ' + c.description : ''}`)
     engine.log({ type: 'notify', message: list.length ? 'Commands:\n' + list.join('\n') : 'No commands yet. Plugins add them.' })
@@ -735,7 +938,10 @@ function renderSettings () {
     row('Streaming mode', 'Hides your username in JR and in plugins that support it.', toggle('streamingMode', () => { renderStatus(); renderLogs() })),
     row('Open the game when this profile opens', 'Skips Home and goes straight to Animal Jam.', toggle('openGameOnStart')),
     row('Open Trading when a trade starts', 'Shows what the other player is offering.', toggle('tradeHelper', syncTradeSwitch)),
-    row('Packet limit', 'Most packets plugins can send each second. Higher can get you kicked.', rate)
+    row('Packet limit', 'Most packets plugins can send each second. Higher can get you kicked.', rate),
+    row('Reopen plugins', 'Opens the plugin windows you had open last time.', toggle('reopenPlugins')),
+    row('Desktop notifications', 'For things like an item selling from your shop while JR is in the background.', toggle('notifications')),
+    row('Zoom', 'Ctrl + and Ctrl - to change, Ctrl 0 to reset.', value(`${Math.round((Number(s.zoom) || 1) * 100)}%`))
   ])
   const homeGroup = group('HOME SCREEN', [
     row('Theme', 'Colors for JR and its plugin windows.', null),
@@ -761,7 +967,7 @@ function renderSettings () {
   ])
   const g = info.gate || {}
   group('DISCORD', [
-    row('Show JR on my Discord profile', 'Rich Presence, with a button to join the JR Discord. Needs the Discord app open on this computer.', (() => {
+    row('Show JR on my Discord profile', 'Rich Presence, with a link to join the JR Discord. Needs the Discord app open on this computer.', (() => {
       const b = el('button', 'switch' + (info.richPresence !== false ? ' on' : ''))
       b.setAttribute('role', 'switch')
       b.onclick = attempt(async () => { info.richPresence = await ipcRenderer.invoke('presence:enabled', info.richPresence === false) ; b.classList.toggle('on', info.richPresence !== false) })
@@ -770,9 +976,34 @@ function renderSettings () {
     row(g.disabled ? 'Discord check is off' : g.user ? `Signed in as ${g.user.globalName || g.user.username}` : 'Signed in', 'JR is for members of the JR Discord server.', button('JR Discord', () => ipcRenderer.invoke('open-url', info.invite)))
   ])
   group('ABOUT', [
+    row('Report a bug', 'Saves your recent logs to a file you can send in the JR Discord.', button('Report a bug', () => openBugReport())),
+    row('What\u2019s new', `Everything new in JR ${info.version}.`, button('What\u2019s new', () => showNews(true))),
     row(`JR ${info.version}`, 'Made by BradysLabs. Not affiliated with WildWorks.', button('Developer tools', () => ipcRenderer.send('win', 'devtools')))
   ])
 }
+
+/* ----------------------------------------------------------- bug report */
+
+const bugReport = require(path.join(info.root, 'src', 'ui', 'bugreport.js'))
+function openBugReport () {
+  $('bugNote').value = ''
+  $('bugModal').classList.remove('hidden')
+  setTimeout(() => $('bugNote').focus(), 30)
+}
+const closeBugReport = () => $('bugModal').classList.add('hidden')
+$('reportBug').onclick = openBugReport
+$('bugCancel').onclick = closeBugReport
+$('bugModal').addEventListener('click', (e) => { if (e.target === $('bugModal')) closeBugReport() })
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('bugModal').classList.contains('hidden')) closeBugReport() })
+$('bugSave').onclick = attempt(async () => {
+  const text = bugReport.buildReport({ info, engine, note: $('bugNote').value })
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')
+  const r = await ipcRenderer.invoke('bugreport:save', text, `JR-bug-report-${stamp}.txt`)
+  if (!r || !r.ok) throw new Error((r && r.error) || 'Couldn\u2019t save the report.')
+  if (!r.value) return // cancelled
+  closeBugReport()
+  toast('Report saved. Drag it into #bug-reports in the JR Discord.')
+})
 
 /* ------------------------------------------------------------------ gate */
 
@@ -801,4 +1032,45 @@ $('lockCheck').onclick = async () => {
 
 window.addEventListener('beforeunload', () => { engine.shutdown() })
 go('home')
+/* -------------------------------------------------- plugin errors */
+
+// Uncaught errors from plugin windows (main process watches their consoles).
+ipcRenderer.on('jr:plugin-error', (event, { id, message } = {}) => {
+  if (!id) return
+  engine.reportPluginError(id, String(message || 'Unknown error'))
+})
+
+/* -------------------------------------------------- notifications */
+
+engine.events.on('notify', ({ title, body, force }) => {
+  if (!force && document.hasFocus()) return
+  try {
+    const n = new Notification(title, { body, icon: path.join(info.root, 'assets', 'icon.png') })
+    n.onclick = () => ipcRenderer.send('win', 'focus')
+  } catch (_) {}
+})
+
+/* -------------------------------------------------- what's new */
+
+let news = null
+function showNews (always) {
+  let notes = {}
+  try { notes = JSON.parse(require('fs').readFileSync(path.join(info.root, 'src', 'ui', 'whats-new.json'), 'utf8')) } catch (_) {}
+  news = qol.whatsNewFor(notes, info.version, always ? null : engine.settings.lastSeenVersion)
+  if (!news) { if (always) toast('No notes for this version.'); return }
+  $('newsTitle').textContent = `What\u2019s new in JR ${news.version}`
+  const list = $('newsList')
+  list.innerHTML = ''
+  for (const it of news.items) {
+    const row = el('div', 'news-item')
+    row.append(el('div', 't', it.title), el('div', 'd', it.text))
+    list.appendChild(row)
+  }
+  $('newsModal').classList.remove('hidden')
+}
+function markNewsSeen () { if (engine.settings.lastSeenVersion !== info.version) engine.updateSettings({ lastSeenVersion: info.version }) }
+$('newsClose').onclick = () => closeModal('newsModal')
+$('newsModal').addEventListener('click', (e) => { if (e.target === $('newsModal')) closeModal('newsModal') })
+setTimeout(() => showNews(false), 600)
+
 engine.start().then(() => { renderStatus(); renderPins(); renderPlugins() }).catch(e => toast(e.message, true))

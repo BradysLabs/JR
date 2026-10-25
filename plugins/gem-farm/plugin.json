@@ -1,0 +1,9 @@
+{
+  "name": "Gem Farm",
+  "description": "Collects the gem prize from adventure #49 over and over, and can recycle the prize items for more gems.",
+  "category": "Gameplay",
+  "icon": "fa-gem",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

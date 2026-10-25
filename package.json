@@ -1,7 +1,7 @@
 {
   "name": "jr",
   "productName": "JR",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "JR, a plugin toolkit for Animal Jam Classic by BradysLabs.",
   "author": "BradysLabs",
   "license": "MIT",
@@ -29,6 +29,7 @@
       "src/**/*",
       "plugins/**/*",
       "data/worth/values.json",
+      "data/worth/image-colors.json",
       "assets/**/*",
       "package.json",
       "LICENSE"

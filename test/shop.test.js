@@ -4,7 +4,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Dispatch } = require('../src/engine/dispatch')
 const { decode } = require('../src/engine/codec')
-const { ShopService } = require('../plugins/shop-restocker/shop')
+const { ShopService, summarizeSales, salesCsv } = require('../plugins/shop-restocker/shop')
 
 function setup () {
   const d = new Dispatch()
@@ -163,4 +163,258 @@ test('shops can be given your own name, and reset', async () => {
   assert.deepEqual(data.names, { 151: 'Rares' })
   s.renameShop(151, '')
   assert.equal(s.stands()[0].name, 'My Shop')
+})
+
+test('a request Animal Jam never answers does not swallow the game\'s next answer', async () => {
+  const d = new Dispatch()
+  d.session = { toServer: () => {}, toGame: () => {} }
+  d.setState('player', { userName: 'Seller' })
+  d.setState('room', '1')
+  const s = new ShopService({ dispatch: d, items: {}, storage: { get: (k, f) => f, set: () => {} }, replyTimeout: 50 })
+  await assert.rejects(s.readShop(999), /didn.t answer/)
+  // The game opens a shop afterwards; its answer must reach the game.
+  await d.process(decode('%xt%o%dsi%1%Seller%151%', 'out'))
+  const reply = decode('%xt%dsi%-1%1%0%', 'in')
+  await d.process(reply)
+  assert.notEqual(reply.send, false)
+})
+
+test('the game\'s shop request waits while JR is waiting for its own answer', async () => {
+  const d = new Dispatch()
+  const sent = []
+  d.session = { toServer: (t) => sent.push(t), toGame: () => {} }
+  d.setState('player', { userName: 'Seller' })
+  d.setState('room', '1')
+  const s = new ShopService({ dispatch: d, items: {}, storage: { get: (k, f) => f, set: () => {} } })
+  const reading = s.readShop(151)
+  for (let i = 0; i < 100 && !sent.length; i++) await new Promise(r => setTimeout(r, 5))
+  const gameAsk = decode('%xt%o%dsi%1%Seller%152%', 'out')
+  await d.process(gameAsk)
+  assert.equal(gameAsk.send, false) // held
+  const mine = decode('%xt%dsi%-1%1%0%', 'in')
+  await d.process(mine)
+  await reading
+  assert.equal(mine.send, false) // JR's answer stays with JR
+  for (let i = 0; i < 100 && sent.length < 2; i++) await new Promise(r => setTimeout(r, 5))
+  assert.equal(sent[1], '%xt%o%dsi%1%Seller%152%') // the game's request went out after
+  const theirs = decode('%xt%dsi%-1%1%0%', 'in')
+  await d.process(theirs)
+  assert.notEqual(theirs.send, false) // and its answer reaches the game
+})
+
+test('den list with mannequins reads right even before item names load', async () => {
+  const d = new Dispatch()
+  const den = new Map([['3993', { name: 'My Shop', specialType: 5 }], ['500', { name: 'Mannequin', specialType: 4 }]])
+  const items = { ready: false, getDenItem: (id) => (items.ready ? den.get(String(id)) || { name: 'x' } : null) }
+  const s = new ShopService({ dispatch: d, items, storage: { get: (k, f) => f, set: () => {} } })
+  const manq = ['1', '500', '1', '0', 'true', '', '0', '', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '0']
+  const stand1 = ['151', '3993', '1', '0', 'true', '', '0', '', '0']
+  const stand2 = ['160', '3993', '1', '0', 'true', '', '0', '', '0']
+  await d.process(decode(`%xt%di%-1%0%3%0%${manq.join('%')}%${stand1.join('%')}%${stand2.join('%')}%`, 'in'))
+  assert.deepEqual([...s.den.keys()], [1, 151, 160])
+  assert.equal(s.stands().length, 0) // names not loaded yet
+  items.ready = true
+  assert.deepEqual(s.stands().map(x => x.id), [151, 160])
+})
+
+test('a sale sends a desktop notification when JR is given one', async () => {
+  const { d } = setup()
+  const notes = []
+  const den = new Map([['994', { name: 'Lamp' }]])
+  const s = new ShopService({
+    dispatch: d,
+    items: { getDenItem: (id) => den.get(String(id)) || null, getClothing: () => null },
+    storage: { get: (k, f) => f, set: () => {} },
+    notify: (n) => notes.push(n)
+  })
+  await d.process(decode('%xt%dsb%-1%1%Seller%151%0%30%0%20%994%900%', 'in'))
+  assert.deepEqual(notes, [{ title: 'Item sold', body: 'Lamp for 30 Gems.' }])
+  // Someone else's sale: nothing.
+  await d.process(decode('%xt%dsb%-1%1%Other%151%0%30%0%20%994%900%', 'in'))
+  assert.equal(notes.length, 1)
+  s.dispose()
+})
+
+test('sales log: every sale is kept, with totals, a spreadsheet copy and clearing', async () => {
+  const { s, server, data } = setup()
+  s.renameShop(151, 'Front shop')
+  await server('%xt%dsb%-1%1%Seller%151%3%50%2%10%439%900%')
+  await server('%xt%dsb%-1%1%Seller%151%0%30%0%20%994%900%')
+  await server('%xt%dsb%-1%1%Someone%151%0%99%0%20%994%900%') // not yours
+  const snap = s.snapshot()
+  assert.equal(snap.salesCount, 2)
+  assert.deepEqual(snap.sales.map(x => [x.name, x.cost, x.currency, x.kind, x.shop]), [
+    ['Lamp', 30, 0, 'den', 'Front shop'],
+    ['Headdress', 50, 3, 'clothing', 'Front shop']
+  ])
+  assert.deepEqual(snap.salesTotals.today, { 3: 50, 0: 30, count: 2 })
+  assert.equal(data.sales.length, 2) // saved with the profile
+
+  const csv = s.salesCsv().split('\n')
+  assert.equal(csv[0], 'Time,Item,Type,Price,Currency,Shop')
+  assert.match(csv[1], /,Headdress,clothing,50,Diamonds,Front shop$/)
+  assert.match(csv[2], /,Lamp,den,30,Gems,Front shop$/)
+
+  assert.equal(s.clearSales(), 2)
+  assert.equal(s.snapshot().salesCount, 0)
+})
+
+test('sales log: totals split today, the last week and older; CSV quotes commas', () => {
+  const now = new Date('2026-10-22T15:00:00').getTime()
+  const at = (h) => new Date(now - h * 3600 * 1000).toISOString()
+  const t = summarizeSales([
+    { at: at(1), cost: 10, currency: 3 },
+    { at: at(30), cost: 5, currency: 0 },
+    { at: at(24 * 10), cost: 7, currency: 3 }
+  ], now)
+  assert.deepEqual(t.today, { 3: 10, 0: 0, count: 1 })
+  assert.deepEqual(t.week, { 3: 10, 0: 5, count: 2 })
+  assert.deepEqual(t.all, { 3: 17, 0: 5, count: 3 })
+  assert.match(salesCsv([{ at: 'x', name: 'Hat, Rare', kind: 'clothing', cost: 1, currency: 3, shop: 'A "b"' }]), /"Hat, Rare",clothing,1,Diamonds,"A ""b"""$/)
+})
+
+test('sales log: a damaged saved log starts fresh', () => {
+  const d = new Dispatch()
+  const s = new ShopService({ dispatch: d, items: {}, storage: { get: (k, f) => (k === 'sales' ? 'oops' : f), set: () => {} } })
+  assert.deepEqual(s.sales, [])
+})
+
+/* ---------------------------------------------------- shop explorer */
+
+const { readDenStands, parseShopItems } = require('../plugins/shop-restocker/shop')
+// A real visit to a friend's den (name and shop ids replaced).
+const VISIT = require('./fixtures/den-visit.json')
+
+test('shop explorer: finds the My Shop stands in a den, left to right', () => {
+  const v = decode(VISIT.ds, 'in').value
+  const stands = readDenStands(v, (defId) => defId === 3993)
+  assert.deepEqual(stands.map(s => s.id), [4153, 4174, 3391, 3192, 3381, 3389])
+  assert.deepEqual(stands[0], { id: 4153, defId: 3993, placed: true, x: 384, y: 489 })
+})
+
+test('shop explorer: reads pets, clothing and den items in other players\' shops', () => {
+  const [pets, clothing, den] = VISIT.dsi.map(t => parseShopItems(decode(t, 'in').value))
+  assert.equal(pets.length, 16)
+  assert.deepEqual(pets[0], { kind: 'pet', currency: 3, cost: 65, slot: 325, defId: 121 })
+  assert.deepEqual(pets.filter(i => i.kind === 'clothing')[0], { kind: 'clothing', currency: 3, cost: 395, slot: 9170, defId: 285, color: 341114880 })
+  assert.equal(clothing.length, 21)
+  assert.ok(clothing.every(i => i.kind === 'clothing' && i.currency === 3))
+  assert.deepEqual(clothing[0], { kind: 'clothing', currency: 3, cost: 15, slot: 5161, defId: 3427, color: 271654399 })
+  assert.equal(den.length, 21)
+  assert.deepEqual(den[15], { kind: 'den', currency: 3, cost: 125, slot: 4928, defId: 790 })
+  // Your own shop's shorter answer still reads.
+  assert.deepEqual(parseShopItems(decode('%xt%dsi%-1%1%2%v1%3%50%2%10%439%0%30%0%20%994%', 'in').value).map(i => [i.kind, i.cost, i.defId]), [['clothing', 50, 439], ['den', 30, 994]])
+})
+
+test('shop explorer: scans every stand in the den you walked into', async () => {
+  const { d, s, sent, server } = setup()
+  await server(VISIT.rj)
+  await server(VISIT.ds)
+  const room = d.getState('room')
+  let e = s.explorer()
+  assert.equal(e.owner, 'friend')
+  assert.equal(e.here, true)
+  assert.equal(e.stands.length, 6)
+  assert.equal(e.stands[0].items, null)
+
+  // Answer each stand's request with one of the captured shops.
+  s.wait = async () => {}
+  const answers = [...VISIT.dsi, ...VISIT.dsi]
+  const answering = (async () => {
+    for (let n = 0; n < 6; n++) {
+      const before = sent.length
+      for (let i = 0; i < 400 && sent.length === before; i++) await new Promise(r => setTimeout(r, 2))
+      await server(answers[n])
+    }
+  })()
+  const result = await s.scanDen()
+  await answering
+  assert.deepEqual(result, { shops: 6, failed: 0, items: 16 + 21 + 21 + 16 + 21 + 21, stopped: false })
+  assert.equal(sent[0], `%xt%o%dsi%${room}%friend%4153%`)
+  e = s.explorer()
+  assert.equal(e.stands[1].items[0].name, 'Item #3427') // clothing, named from item names
+  assert.equal(e.stands[0].items[0].name, null) // pets are named by the window
+  assert.ok(e.stands.every(st => st.checkedAt))
+
+  // Somewhere else now.
+  await server('%xt%rj%1072141%1%jamaa_township.room_main%999%1%')
+  assert.equal(s.explorer().here, false)
+  await assert.rejects(s.browseShop(4174), /left that den/)
+})
+
+test('shop explorer: needs a den first', async () => {
+  const { s } = setup()
+  assert.deepEqual(s.explorer(), { owner: null, stands: [], here: false, scan: null })
+  await assert.rejects(s.scanDen(), /Go into a den/)
+})
+
+test('shop explorer: the game sending the den again keeps you in it and keeps what was read', async () => {
+  const { s, sent, server } = setup()
+  s.wait = async () => {}
+  await server(VISIT.rj)
+  await server(VISIT.ds)
+  const reading = s.browseShop(4153)
+  while (!sent.length) await new Promise(r => setTimeout(r, 2))
+  await server(VISIT.dsi[0])
+  await reading
+  // Same den's items again, this time with -1 as the room.
+  await server(VISIT.ds.replace('%xt%ds%1072141%', '%xt%ds%-1%'))
+  const e = s.explorer()
+  assert.equal(e.here, true)
+  assert.equal(e.stands.find(st => st.id === 4153).items.length, 16)
+})
+
+test('shop explorer: a late answer is dropped, not given to the next shop', async () => {
+  const { s, sent, server } = setup()
+  const waits = []
+  s.wait = async (ms) => { waits.push(ms) }
+  await server(VISIT.rj)
+  await server(VISIT.ds)
+  // The first shop doesn't answer in time.
+  const slow = s._ask('dsi', ['friend', 4153], { timeout: 20 })
+  await assert.rejects(slow, /didn.t answer/)
+  const next = s.browseShop(4174)
+  while (sent.length < 2) await new Promise(r => setTimeout(r, 2))
+  await server(VISIT.dsi[0]) // the first shop's answer, arriving late: dropped
+  await server(VISIT.dsi[1]) // the answer for 4174
+  const shop = await next
+  assert.equal(shop.items.length, 21)
+  assert.ok(shop.items.every(i => i.kind === 'clothing'))
+})
+
+test('shop explorer: a scan retries a shop that didn\'t answer, and can be stopped', async () => {
+  const { s, sent, server } = setup()
+  s.wait = async () => {}
+  await server(VISIT.rj)
+  await server(VISIT.ds)
+  const answered = []
+  let skipFirst = true
+  const answering = (async () => {
+    for (let n = 0; n < 7; n++) {
+      const before = sent.length
+      for (let i = 0; i < 2000 && sent.length === before; i++) await new Promise(r => setTimeout(r, 2))
+      if (sent.length === before) break
+      if (skipFirst) { skipFirst = false; continue } // shop 1 says nothing the first time
+      answered.push(sent[sent.length - 1])
+      await server(VISIT.dsi[n % 3])
+    }
+  })()
+  // Shorter waits than the real ones, so the test is quick.
+  const browse = s.browseShop.bind(s)
+  s.browseShop = async (id) => {
+    const v = await s._ask('dsi', ['friend', id], { timeout: 200 })
+    s.visit.shops.set(id, { items: require('../plugins/shop-restocker/shop').parseShopItems(v), checkedAt: 'x' })
+  }
+  const result = await s.scanDen()
+  await answering
+  assert.equal(result.shops, 6)
+  assert.equal(result.failed, 0)
+  assert.match(answered[answered.length - 1], /%friend%4153%$/) // the retry
+  s.browseShop = browse
+
+  // Stop.
+  const stopping = s.scanDen()
+  s.stopScan()
+  const r = await stopping.catch(e => e)
+  assert.ok(r.stopped || r instanceof Error)
 })

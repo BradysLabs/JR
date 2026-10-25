@@ -57,12 +57,28 @@
     .item { display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--line); }
     .item:first-child { border-top: 0; }
     .item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item .label { min-width: 0; }
+    .wiki-line { font-size: 11.5px; color: var(--faint); margin-top: 2px; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wiki-line button { height: 20px; padding: 0 8px; margin-left: 6px; font-size: 11px; border-radius: 6px; font-family: inherit; vertical-align: 1px; }
+    .wiki-line .ok { color: var(--good); margin-left: 6px; font-family: inherit; }
     .item .kind { color: var(--faint); font-size: 11px; margin-left: 6px; }
     .owned { font-size: 11.5px; color: var(--dim); font-family: var(--mono); }
     .owned.none { color: var(--warn); }
     .price { display: flex; align-items: center; gap: 4px; }
     .price input { width: 84px; height: 28px; font-family: var(--mono); font-size: 12px; text-align: right; }
     .price select { height: 28px; font-size: 12px; padding: 0 6px; }
+    .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+    .tot { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 12px; }
+    .tot .k { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+    .tot .v { font-family: var(--mono); font-size: 12.5px; margin-top: 4px; color: var(--text); }
+    .tot .n { font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+    .sales { max-height: 260px; overflow: auto; }
+    .sale { display: grid; grid-template-columns: 74px 1fr auto; gap: 10px; align-items: baseline; padding: 7px 14px; border-top: 1px solid var(--line); font-size: 12.5px; }
+    .sale:first-child { border-top: 0; }
+    .sale time { color: var(--faint); font-family: var(--mono); font-size: 11.5px; }
+    .sale .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sale .shopname { color: var(--faint); font-size: 11.5px; margin-left: 6px; }
+    .sale .amt { font-family: var(--mono); font-size: 12px; color: var(--text); }
     .tpl-foot { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--panel2); flex-wrap: wrap; }
     .rename { display: flex; gap: 6px; }
     .rename input { width: 220px; }
@@ -99,6 +115,11 @@
   <div id="status"></div>
 
   <section>
+    <h2>Sales</h2>
+    <div id="sales"></div>
+  </section>
+
+  <section>
     <h2>Activity</h2>
     <div class="log" id="log"></div>
   </section>
@@ -111,6 +132,28 @@
       })
       const escape = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
       const api = () => jam.dispatch.getState('shopTemplates')
+
+      // Wiki values for suggested prices (same values as the Trading page).
+      let pricer = null
+      const getPricer = () => {
+        if (pricer !== null) return pricer || null
+        try {
+          const items = jam.application && jam.application.items
+          if (!items || !items.ready) return null
+          const path = require('path')
+          const root = path.resolve(__dirname, '..', '..')
+          pricer = require(path.join(root, 'src', 'worth', 'pricer.js')).createPricer({ root, items })
+        } catch (_) { pricer = false }
+        return pricer || null
+      }
+      const wikiFor = (it) => {
+        const p = getPricer()
+        if (!p) return null
+        try {
+          const v = p.value({ kind: it.kind, id: it.defId, color: it.color })
+          return v.diamonds ? { text: p.format(v.diamonds, { bl: false }), price: p.suggestedPrice(v.diamonds) } : null
+        } catch (_) { return null }
+      }
 
       const open = new Set()
       let renaming = null
@@ -197,10 +240,17 @@
           const head = renaming === t.id
             ? `<div class="rename" data-stop><input id="rename-${escape(t.id)}" value="${escape(t.name)}" maxlength="40"><button class="primary" data-act="rename-ok">Save</button><button class="ghost" data-act="rename-cancel">Cancel</button></div>`
             : `<span class="chev">▶</span><div><div class="title">${escape(t.name)}</div><div class="meta">${t.items.length} item${t.items.length === 1 ? '' : 's'} · saved ${new Date(t.createdAt).toLocaleDateString()}</div></div>`
+          let suggestions = 0
           const items = t.items.map((it, i) => {
             const owned = avail[i] ? avail[i].owned : null
+            const wiki = isOpen ? wikiFor(it) : null
+            const atWiki = wiki && it.currency === 3 && Number(it.cost) === wiki.price
+            if (wiki && !atWiki) suggestions++
+            const wikiLine = wiki
+              ? `<div class="wiki-line" data-stop>Wiki ${escape(wiki.text)}${atWiki ? '<span class="ok">✓ at wiki price</span>' : `<button data-act="use-wiki" data-price="${wiki.price}" title="Set the price to ${wiki.price.toLocaleString()} Diamonds">Use ${wiki.price.toLocaleString()}</button>`}</div>`
+              : ''
             return `<div class="item" data-index="${i}">
-              <div class="name" title="${escape(it.name)}">${escape(it.name)}<span class="kind">${it.kind === 'den' ? 'Den' : 'Clothing'}</span></div>
+              <div class="label"><div class="name" title="${escape(it.name)}">${escape(it.name)}<span class="kind">${it.kind === 'den' ? 'Den' : 'Clothing'}</span></div>${wikiLine}</div>
               <span class="owned ${owned === 0 ? 'none' : ''}">${owned == null ? '' : owned === 0 ? 'none free' : `${owned} free`}</span>
               <div class="price" data-stop>
                 <input type="number" min="1" step="1" value="${Number(it.cost)}" data-field="cost">
@@ -215,12 +265,36 @@
               ${items || '<div class="empty" style="margin:12px;border:0">This template has no items.</div>'}
               <div class="tpl-foot">
                 <button data-act="rename">Rename</button>
+                ${suggestions ? `<button data-act="use-wiki-all">Use wiki prices for all (${suggestions})</button>` : ''}
                 <span class="sp"></span>
                 <button class="danger" data-act="delete">${confirmDelete === t.id ? 'Press again to delete' : 'Delete'}</button>
               </div>
             </div>
           </div>`
         }).join('')
+      }
+
+      let confirmClearSales = false
+      function renderSales (s) {
+        const box = $('sales')
+        if (!api()) { box.innerHTML = ''; return }
+        const list = s.sales || []
+        if (!list.length) {
+          box.innerHTML = '<div class="empty">No sales yet. Every item that sells from your shop shows up here, even while this window is closed.</div>'
+          return
+        }
+        const t = s.salesTotals || {}
+        const amount = (b) => [b && b[3] ? money(b[3], 3) : '', b && b[0] ? money(b[0], 0) : ''].filter(Boolean).join(' + ') || '—'
+        const tot = (label, b) => `<div class="tot"><div class="k">${label}</div><div class="v">${amount(b)}</div><div class="n">${b ? b.count : 0} sale${b && b.count === 1 ? '' : 's'}</div></div>`
+        const day = (iso) => { const d = new Date(iso); return d.toDateString() === new Date().toDateString() ? when(iso) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) }
+        box.innerHTML = `<div class="totals">${tot('Today', t.today)}${tot('Last 7 days', t.week)}${tot('All time', t.all)}</div>
+          <div class="card sales">${list.map(x => `<div class="sale" title="${escape(new Date(x.at).toLocaleString())}"><time>${day(x.at)}</time><div class="what">${escape(x.name)}${x.shop ? `<span class="shopname">${escape(x.shop)}</span>` : ''}</div><span class="amt">${money(x.cost, x.currency)}</span></div>`).join('')}</div>
+          <div class="row" style="margin-top:8px">
+            <span class="note">${s.salesCount > list.length ? `Showing the latest ${list.length} of ${s.salesCount}. ` : ''}JR keeps your last 1,000 sales.</span>
+            <span class="sp"></span>
+            <button data-act="sales-copy">Copy as spreadsheet</button>
+            <button class="danger" data-act="sales-clear">${confirmClearSales ? 'Press again to clear' : 'Clear'}</button>
+          </div>`
       }
 
       function renderLog (s) {
@@ -232,13 +306,13 @@
       function refresh (force) {
         const a = api()
         snap = a ? a.snapshot() : { ready: {}, stands: [], templates: [], activity: [], busy: false }
-        const key = JSON.stringify(snap) + [...open].join() + renaming + renamingShop + confirmDelete
+        const key = JSON.stringify(snap) + [...open].join() + renaming + renamingShop + confirmDelete + confirmClearSales + (getPricer() ? 'p' : '')
         if (!force && key === lastKey) return
         // Don't redraw under the cursor while someone is typing.
         const el = document.activeElement
         if (!force && el && el.tagName === 'INPUT' && (el.closest('#templates') || el.closest('.rename'))) return
         lastKey = key
-        renderChecks(snap); renderShops(snap); renderTemplates(snap); renderLog(snap)
+        renderChecks(snap); renderShops(snap); renderTemplates(snap); renderSales(snap); renderLog(snap)
         if (renaming) { const input = document.getElementById(`rename-${renaming}`); if (input) { input.focus(); input.select() } }
         if (renamingShop != null) { const input = document.getElementById(`shop-name-${renamingShop}`); if (input) { input.focus(); input.select() } }
       }
@@ -254,6 +328,16 @@
         const tplId = tplEl && tplEl.dataset.tpl
         const act_ = btn.dataset.act
         if (act_ !== 'delete') confirmDelete = null
+        if (act_ !== 'sales-clear') confirmClearSales = false
+
+        if (act_ === 'sales-copy') {
+          return act(a => { require('electron').clipboard.writeText(a.salesCsv()); return snap.salesCount }, n => `Copied ${n} sale${n === 1 ? '' : 's'}. Paste into Excel or Google Sheets.`)
+        }
+        if (act_ === 'sales-clear') {
+          if (!confirmClearSales) { confirmClearSales = true; return refresh(true) }
+          confirmClearSales = false
+          return act(a => a.clearSales(), n => `Cleared ${n} sale${n === 1 ? '' : 's'}.`)
+        }
 
         if (act_ === 'toggle') { if (renaming) return; open.has(tplId) ? open.delete(tplId) : open.add(tplId); return refresh(true) }
         if (act_ === 'shop-rename') { renamingShop = shopId; renaming = null; return refresh(true) }
@@ -282,6 +366,22 @@
           confirmDelete = null
           open.delete(tplId)
           return act(a => a.deleteTemplate(tplId), 'Template deleted.')
+        }
+        if (act_ === 'use-wiki') {
+          const index = Number(btn.closest('[data-index]').dataset.index)
+          const price = Number(btn.dataset.price)
+          return act(a => a.setPrice(tplId, index, price, 3), `Price set to ${price.toLocaleString()} Diamonds.`)
+        }
+        if (act_ === 'use-wiki-all') {
+          const t = snap.templates.find(x => x.id === tplId)
+          return act(a => {
+            let n = 0
+            t.items.forEach((it, i) => {
+              const wiki = wikiFor(it)
+              if (wiki && !(it.currency === 3 && Number(it.cost) === wiki.price)) { a.setPrice(tplId, i, wiki.price, 3); n++ }
+            })
+            return n
+          }, n => `Set ${n} price${n === 1 ? '' : 's'} to the wiki value.`)
         }
         if (act_ === 'remove-item') {
           const index = Number(btn.closest('[data-index]').dataset.index)

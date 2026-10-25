@@ -1,0 +1,9 @@
+{
+  "name": "Auto Advertise",
+  "description": "Says your shop ads in chat on a timer, at least 30 seconds apart, while this window is open.",
+  "category": "Trading",
+  "icon": "fa-bullhorn",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

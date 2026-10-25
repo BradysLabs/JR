@@ -1,6 +1,6 @@
 {
   "name": "Inventory Reader",
-  "description": "Keeps a profile-local copy of the clothing inventory JR receives from Animal Jam.",
+  "description": "Keeps a copy of your clothing and den items from Animal Jam for Inventory Worth and Trading.",
   "author": "BradysLabs",
   "category": "Trading",
   "icon": "fa-box-open",

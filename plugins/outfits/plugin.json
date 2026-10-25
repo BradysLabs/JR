@@ -1,0 +1,9 @@
+{
+  "name": "Outfits",
+  "description": "Save the clothes you're wearing as an outfit and put them back on in one click.",
+  "category": "Customize",
+  "icon": "fa-tshirt",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui"
+}

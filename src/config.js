@@ -10,7 +10,7 @@ module.exports = {
     clientId: '1561120591308918874',
     guildId: '1553869410459062354',
     requiredRoleId: null,
-    invite: 'https://discord.gg/UvXzA2gK5W'
+    invite: 'https://discord.gg/ENu6SpVrwn'
   },
 
   github: { owner: 'BradysLabs', repo: 'JR' },
