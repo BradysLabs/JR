@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "description": "JR, a plugin toolkit for Animal Jam Classic by BradysLabs.",
   "author": "BradysLabs",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "main": "src/main/index.js",
   "engines": {

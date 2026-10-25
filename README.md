@@ -35,6 +35,6 @@ npm run build    build the Windows installer into dist/
 
 ## License
 
-Copyright (c) 2026 BradysLabs. All rights reserved. See [LICENSE](LICENSE).
+JR is open source under the [MIT License](LICENSE). Copyright (c) 2026 BradysLabs.
 
 Animal Jam is a trademark of WildWorks, Inc. Item values come from the Animal Jam Item Worth Wiki (aj-item-worth.fandom.com), CC BY-SA.
