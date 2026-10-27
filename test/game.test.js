@@ -49,7 +49,7 @@ test('asar: write then read back', () => {
 test('game copy: built once, patched, rebuilt when AJ updates', () => {
   const official = fakeOfficial()
   const gameDir = path.join(tmp(), 'game')
-  const first = install.ensureGame({ officialDir: official, gameDir })
+  const first = install.ensureGame({ officialDir: official, gameDir, platform: 'win32' })
   assert.equal(first.rebuilt, true)
   assert.ok(fs.existsSync(path.join(gameDir, 'AJ Classic.exe')))
   assert.ok(fs.existsSync(path.join(gameDir, 'pepflashplayer.dll')))
@@ -70,10 +70,10 @@ test('game copy: built once, patched, rebuilt when AJ updates', () => {
   // The patched files are still valid JavaScript.
   assert.doesNotThrow(() => new Function(screen))
 
-  assert.equal(install.ensureGame({ officialDir: official, gameDir }).rebuilt, false)
+  assert.equal(install.ensureGame({ officialDir: official, gameDir, platform: 'win32' }).rebuilt, false)
   // AJ updates itself
   fs.appendFileSync(path.join(official, 'AJ Classic.exe'), '2')
-  assert.equal(install.ensureGame({ officialDir: official, gameDir }).rebuilt, true)
+  assert.equal(install.ensureGame({ officialDir: official, gameDir, platform: 'win32' }).rebuilt, true)
 })
 
 test('game copy: a changed AJ is reported, not half-patched', () => {
@@ -82,7 +82,7 @@ test('game copy: a changed AJ is reported, not half-patched', () => {
   const files = Object.entries(FAKE).map(([k, t]) => [k, Buffer.from(k === 'config.js' ? 'module.exports = {}' : t)])
   asar.write(p, files)
   const gameDir = path.join(tmp(), 'game')
-  assert.throws(() => install.ensureGame({ officialDir: official, gameDir }), /AJ Classic has changed \(config\.js\)/)
+  assert.throws(() => install.ensureGame({ officialDir: official, gameDir, platform: 'win32' }), /AJ Classic has changed \(config\.js\)/)
   assert.ok(!fs.existsSync(gameDir))
 })
 
