@@ -44,25 +44,45 @@ jobs:
           sudo pkill -9 XProtect >/dev/null || true
           while pgrep XProtect; do sleep 3; done
 
-      # One at a time: both disk images are named "JR <version>", so building
-      # them together makes them get in each other's way.
+      # One at a time, each into its own folder: both disk images are named
+      # "JR <version>", and builds sharing a folder can clean up each other's files.
       - name: Build for Apple Silicon
-        run: npx electron-builder build --mac --arm64 --publish never
+        run: npx electron-builder build --mac --arm64 --publish never -c.directories.output=dist-arm64
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Build for Intel
-        run: npx electron-builder build --mac --x64 --publish never
+        run: npx electron-builder build --mac --x64 --publish never -c.directories.output=dist-x64
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # Both downloads must exist, or this run fails (instead of going green
+      # with one missing).
+      - name: Check both Mac downloads were built
+        run: |
+          VERSION="${TAG#v}"
+          mkdir -p out
+          for ARCH in arm64 x64; do
+            FILE="dist-$ARCH/JR-$VERSION-mac-$ARCH.dmg"
+            if [ ! -f "$FILE" ]; then
+              echo "::error::$FILE was not built. Files in dist-$ARCH:"
+              ls -la "dist-$ARCH" || true
+              exit 1
+            fi
+            cp "$FILE" out/
+          done
+          ls -la out
 
       - name: Keep a copy on this run
         uses: actions/upload-artifact@v5
         with:
           name: JR-mac
-          path: dist/*.dmg
+          path: out/*.dmg
 
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" dist/*.dmg --clobber
+        run: |
+          gh release upload "$TAG" out/*.dmg --clobber
+          echo "Files on the $TAG release now:"
+          gh release view "$TAG" --json assets --jq '.assets[].name'
