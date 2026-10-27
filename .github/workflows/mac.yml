@@ -37,8 +37,22 @@ jobs:
 
       - run: npm test
 
-      - name: Build the Mac app (Apple Silicon and Intel)
-        run: npx electron-builder build --mac --publish never
+      # GitHub's Macs run XProtect, which keeps disk images busy and makes
+      # building the .dmg fail ("hdiutil detach ... failed").
+      - name: Stop XProtect
+        run: |
+          sudo pkill -9 XProtect >/dev/null || true
+          while pgrep XProtect; do sleep 3; done
+
+      # One at a time: both disk images are named "JR <version>", so building
+      # them together makes them get in each other's way.
+      - name: Build for Apple Silicon
+        run: npx electron-builder build --mac --arm64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Build for Intel
+        run: npx electron-builder build --mac --x64 --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
