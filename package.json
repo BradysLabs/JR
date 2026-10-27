@@ -1,7 +1,7 @@
 {
   "name": "jr",
   "productName": "JR",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "JR, a plugin toolkit for Animal Jam Classic by BradysLabs.",
   "author": "BradysLabs",
   "license": "MIT",
@@ -14,7 +14,8 @@
     "test": "node --test test/*.test.js",
     "start": "electron .",
     "build": "electron-builder build --win --publish never",
-    "release": "electron-builder build --win --publish always"
+    "release": "electron-builder build --win --publish always",
+    "build:mac": "electron-builder build --mac --publish never"
   },
   "repository": {
     "type": "git",
@@ -39,6 +40,7 @@
       "assets/**/*",
       "data/worth/values.json"
     ],
+    "afterPack": "tools/after-pack.js",
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
@@ -47,6 +49,26 @@
       "oneClick": true,
       "perMachine": false,
       "shortcutName": "JR"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.games",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "JR-${version}-mac-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "JR ${version}"
     },
     "publish": {
       "provider": "github",

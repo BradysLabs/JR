@@ -11,6 +11,9 @@ const profileId = new URLSearchParams(location.search).get('profile')
 const info = ipcRenderer.sendSync('jr:profile-info', profileId)
 if (!info.ok) { document.body.textContent = info.error; throw new Error(info.error) }
 
+// Mac: its own window buttons, and Cmd instead of Ctrl for shortcuts.
+const isMac = process.platform === 'darwin'
+if (isMac) document.documentElement.classList.add('mac')
 const engine = require(path.join(info.root, 'src', 'ui', 'engine.js'))(info)
 window.jr = engine // handy in DevTools
 const themes = require(path.join(info.root, 'src', 'ui', 'themes.js'))
@@ -64,11 +67,12 @@ function go (next) {
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && !e.shiftKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); go(PAGES[Number(e.key) - 1]) }
-  if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); go('home'); $('search').focus(); $('search').select() }
+  const mod = e.ctrlKey || (isMac && e.metaKey)
+  if (mod && !e.shiftKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); go(PAGES[Number(e.key) - 1]) }
+  if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); go('home'); $('search').focus(); $('search').select() }
   if (e.key === 'F12') ipcRenderer.send('win', 'devtools')
   // Zoom: Ctrl + / Ctrl - / Ctrl 0
-  if (e.ctrlKey && !e.altKey && ['=', '+', '-', '_', '0'].includes(e.key)) {
+  if (mod && !e.altKey && ['=', '+', '-', '_', '0'].includes(e.key)) {
     e.preventDefault()
     const zoom = qol.nextZoom(engine.settings.zoom, e.key === '0' ? 0 : (e.key === '-' || e.key === '_') ? -1 : 1)
     webFrame.setZoomFactor(zoom)
@@ -78,7 +82,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { hideMenu(); ['packetModal', 'newsModal'].forEach(id => { if (!$(id).classList.contains('hidden')) closeModal(id) }) }
 })
 window.addEventListener('wheel', (e) => {
-  if (!e.ctrlKey) return
+  if (!e.ctrlKey && !(isMac && e.metaKey)) return
   e.preventDefault()
   const zoom = qol.nextZoom(engine.settings.zoom, e.deltaY < 0 ? 1 : -1)
   if (zoom === engine.settings.zoom) return

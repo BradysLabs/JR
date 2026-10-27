@@ -266,3 +266,6 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--dim-2); border: 1p
 .pcard.has-error { border-color: #5b2a2f; }
 .pcard .perr { font-size: 9.5px; letter-spacing: .8px; font-weight: 700; color: #fecaca; background: #2a0f12; border: 1px solid #5b2a2f; border-radius: 999px; padding: 2px 7px; white-space: nowrap; }
 .pcard .perr-line { font-size: 11.5px; color: #fca5a5; margin-top: 6px; line-height: 1.4; font-family: var(--mono); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+
+/* Mac: red/yellow/green buttons sit at the left of the title bar, right of the rail. */
+html.mac .main > .titlebar { padding-left: 84px; }

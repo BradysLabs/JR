@@ -190,3 +190,97 @@ test('game server only listens on this computer', async () => {
   await gs.close()
   assert.ok(net)
 })
+
+/* ------------------------------------------------------------------ Mac */
+
+// A stand-in for "AJ Classic.app": program in Contents/MacOS, the archive in
+// Contents/Resources, framework symlinks, and the archive checksum in Info.plist.
+function fakeMacApp (folder) {
+  const app = path.join(folder, 'AJ Classic.app')
+  const c = path.join(app, 'Contents')
+  fs.mkdirSync(path.join(c, 'MacOS'), { recursive: true })
+  fs.mkdirSync(path.join(c, 'Resources'), { recursive: true })
+  const exe = path.join(c, 'MacOS', 'AJ Classic')
+  fs.writeFileSync(exe, '#!/bin/sh\necho game\n')
+  fs.chmodSync(exe, 0o755)
+  const fw = path.join(c, 'Frameworks', 'Electron Framework.framework')
+  fs.mkdirSync(path.join(fw, 'Versions', 'A'), { recursive: true })
+  fs.writeFileSync(path.join(fw, 'Versions', 'A', 'Electron Framework'), 'fw')
+  fs.symlinkSync('A', path.join(fw, 'Versions', 'Current'))
+  fs.symlinkSync('Versions/Current/Electron Framework', path.join(fw, 'Electron Framework'))
+  asar.write(path.join(c, 'Resources', 'app.asar'), Object.entries(FAKE).map(([p, t]) => [p, Buffer.from(t)]))
+  fs.writeFileSync(path.join(c, 'Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+  <key>CFBundleExecutable</key>
+  <string>AJ Classic</string>
+  <key>ElectronAsarIntegrity</key>
+  <dict>
+    <key>Resources/app.asar</key>
+    <dict>
+      <key>algorithm</key>
+      <string>SHA256</string>
+      <key>hash</key>
+      <string>${asar.headerHash(path.join(c, 'Resources', 'app.asar'))}</string>
+    </dict>
+  </dict>
+</dict></plist>
+`)
+  return app
+}
+
+test('mac: finds AJ Classic in Applications (or ~/Applications), not other apps', () => {
+  const apps = tmp(); const userApps = tmp()
+  assert.equal(install.findOfficial({ platform: 'darwin', appFolders: [apps, userApps] }), null)
+  fs.mkdirSync(path.join(apps, 'Something Else.app'))
+  const app = fakeMacApp(userApps)
+  assert.equal(install.findOfficial({ platform: 'darwin', appFolders: [apps, userApps] }), app)
+  assert.equal(install.macExecutable(app), 'AJ Classic')
+  // Windows still looks in its own places.
+  assert.equal(install.findOfficial({ platform: 'win32', env: {}, home: tmp() }), null)
+})
+
+test('mac: the copy stays a working app bundle: symlinks kept, archive patched, checksum updated, signed ad hoc', () => {
+  const official = fakeMacApp(tmp())
+  const gameDir = path.join(tmp(), 'game')
+  const ran = []
+  const run = (cmd, args) => { ran.push([cmd, ...args].join(' ')); return '' }
+  const r = install.ensureGame({ officialDir: official, gameDir, platform: 'darwin', run })
+  assert.equal(r.rebuilt, true)
+  const app = path.join(gameDir, 'AJ Classic.app')
+  assert.equal(r.exe, path.join(app, 'Contents', 'MacOS', 'AJ Classic'))
+  assert.ok(fs.statSync(r.exe).mode & 0o100, 'program is still executable')
+  // Framework symlinks are links, not copies (or missing).
+  const fw = path.join(app, 'Contents', 'Frameworks', 'Electron Framework.framework')
+  assert.equal(fs.readlinkSync(path.join(fw, 'Versions', 'Current')), 'A')
+  assert.equal(fs.readlinkSync(path.join(fw, 'Electron Framework')), 'Versions/Current/Electron Framework')
+  // Patched archive, and Info.plist now has its checksum.
+  const asarFile = path.join(app, 'Contents', 'Resources', 'app.asar')
+  const a = asar.open(asarFile)
+  assert.match(a.read('config.js').toString(), /noUpdater: true/)
+  a.close()
+  const plist = fs.readFileSync(path.join(app, 'Contents', 'Info.plist'), 'utf8')
+  assert.ok(plist.includes(`<string>${asar.headerHash(asarFile)}</string>`))
+  assert.ok(!plist.includes(`<string>${asar.headerHash(path.join(official, 'Contents', 'Resources', 'app.asar'))}</string>`))
+  // Download flag cleared and signed ad hoc, so macOS will open it.
+  // (done on the copy while it's being built, before it's moved into place)
+  const building = path.join(`${gameDir}.building`, 'AJ Classic.app')
+  assert.deepEqual(ran, [`xattr -cr ${building}`, `codesign --force --deep --sign - ${building}`])
+  // Up to date the second time; rebuilt when AJ updates.
+  assert.equal(install.ensureGame({ officialDir: official, gameDir, platform: 'darwin', run }).rebuilt, false)
+  fs.appendFileSync(path.join(official, 'Contents', 'MacOS', 'AJ Classic'), '#2\n')
+  assert.equal(install.ensureGame({ officialDir: official, gameDir, platform: 'darwin', run }).rebuilt, true)
+})
+
+test('mac: a signing failure is explained, and leaves no half-built copy', () => {
+  const official = fakeMacApp(tmp())
+  const gameDir = path.join(tmp(), 'game')
+  const run = (cmd) => { if (cmd === 'codesign') throw new Error('codesign failed: nope') }
+  assert.throws(() => install.ensureGame({ officialDir: official, gameDir, platform: 'darwin', run }), /macOS wouldn't let JR prepare its copy/)
+  assert.ok(!fs.existsSync(gameDir))
+})
+
+test('mac: no checksum in Info.plist is fine (the app doesn\'t check it)', () => {
+  const app = fakeMacApp(tmp())
+  fs.writeFileSync(path.join(app, 'Contents', 'Info.plist'), '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>AJ Classic</string></dict></plist>')
+  assert.equal(install.updateAsarIntegrity(app, path.join(app, 'Contents', 'Resources', 'app.asar'), () => {}), false)
+})

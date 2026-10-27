@@ -1,4 +1,17 @@
 {
+  "0.1.1": {
+    "date": "2026-10",
+    "items": [
+      {
+        "title": "JR for Mac",
+        "text": "JR now runs on Mac, for both Apple Silicon and Intel Macs. It finds AJ Classic in your Applications folder."
+      },
+      {
+        "title": "Mac shortcuts",
+        "text": "On Mac, shortcuts use Cmd: Cmd+K to search, Cmd+1 to Cmd+5 for pages, and Cmd + and Cmd - to zoom."
+      }
+    ]
+  },
   "0.1.0": {
     "date": "2026-10",
     "items": [

@@ -10,7 +10,7 @@
 
 const path = require('path')
 const fs = require('fs')
-const { app, BrowserWindow, ipcMain, protocol, session, shell, net, Menu, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, protocol, session, shell, net, Menu, dialog, Notification } = require('electron')
 const { pathToFileURL } = require('url')
 const config = require('../config')
 const { ProfileStore } = require('../profiles/store')
@@ -24,7 +24,12 @@ const isDev = !app.isPackaged
 
 app.setName('JR')
 app.setAppUserModelId('com.bradyslabs.jr')
-Menu.setApplicationMenu(null)
+const isMac = process.platform === 'darwin'
+// Windows: no menu bar. Mac: the standard app, Edit and Window menus, which
+// is also what makes Cmd+C, Cmd+V, Cmd+Q and Cmd+W work.
+Menu.setApplicationMenu(isMac
+  ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }])
+  : null)
 
 // app://assets/... serves JR's stylesheet and helper script to plugin windows.
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }])
@@ -91,12 +96,15 @@ function gateInfo () {
 
 /* --------------------------------------------------------------- windows */
 
+// Windows draws its own title bar buttons (frameless). Mac keeps its own
+// red/yellow/green buttons, placed over JR's title bar.
 const WINDOW_BASE = {
   backgroundColor: '#0b0b0c',
-  frame: false,
   show: false,
-  icon: path.join(ASSETS, 'icon.png')
+  icon: path.join(ASSETS, 'icon.png'),
+  ...(isMac ? { titleBarStyle: 'hidden' } : { frame: false })
 }
+const macButtons = (x, y = 14) => (isMac ? { trafficLightPosition: { x, y } } : {})
 
 function showPicker () {
   if (picker && !picker.isDestroyed()) {
@@ -107,6 +115,7 @@ function showPicker () {
   }
   picker = new BrowserWindow({
     ...WINDOW_BASE,
+    ...macButtons(16),
     width: 840,
     height: 645,
     resizable: false,
@@ -145,7 +154,8 @@ function openProfile (id) {
   }
   // Reopen where this profile's window was last time.
   const saved = (appSettings().windowBounds || {})[id]
-  const win = new BrowserWindow({ ...WINDOW_BASE, width: 1100, height: 720, ...placement(saved), minWidth: 860, minHeight: 600, title: `JR · ${profile.name}`, webPreferences: prefs })
+  // Mac buttons sit just right of the side rail, in the title bar.
+  const win = new BrowserWindow({ ...WINDOW_BASE, ...macButtons(76), width: 1100, height: 720, ...placement(saved), minWidth: 860, minHeight: 600, title: `JR · ${profile.name}`, webPreferences: prefs })
   win.loadFile(path.join(UI, 'app.html'), { query: { profile: id } })
   win.once('ready-to-show', () => { if (saved && saved.maximized) win.maximize(); win.show() })
   win.on('close', () => rememberBounds(id, win))
@@ -252,7 +262,7 @@ function saveAppSettings (patch) {
 }
 
 function registerIpc () {
-  handle('jr:boot', () => ({ version: app.getVersion(), gate: gateInfo(), invite: config.discord.invite, skipWarning: !!appSettings().skipWarning }))
+  handle('jr:boot', () => ({ platform: process.platform, version: app.getVersion(), gate: gateInfo(), invite: config.discord.invite, skipWarning: !!appSettings().skipWarning }))
   handle('warning:accept', (e, dontShowAgain) => { if (dontShowAgain) saveAppSettings({ skipWarning: true, warningAcceptedAt: new Date().toISOString() }) })
   handle('gate:start', async () => { if (gate) await gate.start(); return gateInfo() })
   handle('gate:sign-in', async () => { if (gate) await gate.signIn(); return gateInfo() })
@@ -352,6 +362,8 @@ async function start () {
 /** Installed copies update themselves from GitHub Releases. */
 function checkForUpdates () {
   if (isDev) return
+  // Unsigned Mac apps can't update themselves, so tell the user instead.
+  if (isMac) { checkForMacUpdate(); setInterval(checkForMacUpdate, 6 * 60 * 60 * 1000); return }
   try {
     const { autoUpdater } = require('electron-updater')
     autoUpdater.autoDownload = true
@@ -359,6 +371,32 @@ function checkForUpdates () {
     autoUpdater.checkForUpdatesAndNotify().catch(() => {})
     setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 60 * 60 * 1000)
   } catch (_) {}
+}
+
+/** Mac: looks for a newer release on GitHub and offers the download. */
+let macUpdateShown = null
+async function checkForMacUpdate () {
+  try {
+    const response = await net.fetch(`https://api.github.com/repos/${config.github.owner}/${config.github.repo}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } })
+    if (!response.ok) return
+    const release = await response.json()
+    const latest = String(release.tag_name || '').replace(/^v/, '')
+    if (!isNewer(latest, app.getVersion()) || macUpdateShown === latest) return
+    macUpdateShown = latest
+    const note = new Notification({ title: `JR ${latest} is out`, body: 'Click to download it. Install it over this one; your profiles stay.' })
+    note.on('click', () => shell.openExternal(release.html_url || `https://github.com/${config.github.owner}/${config.github.repo}/releases/latest`))
+    note.show()
+  } catch (_) {}
+}
+
+/** Whether version a (like "0.2.0") is newer than b. */
+function isNewer (a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0)
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0)
+  }
+  return false
 }
 
 app.on('window-all-closed', () => app.quit())

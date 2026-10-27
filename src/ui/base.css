@@ -63,3 +63,6 @@ input, textarea, select { font: inherit; color: var(--text); user-select: text; 
 
 .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #1a1a1d; border: 1px solid var(--line-2); color: var(--text-2); padding: 10px 16px; border-radius: 11px; font-size: 13px; box-shadow: 0 12px 40px rgba(0,0,0,.5); z-index: 100; max-width: 80%; }
 .toast.error { border-color: #5b2a2f; color: #fecaca; }
+
+/* Mac: the system draws the window buttons; leave room for them. */
+html.mac .winbtn { display: none; }

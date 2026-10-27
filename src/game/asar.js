@@ -112,4 +112,21 @@ function write (file, files, { executable = new Set() } = {}) {
   fs.renameSync(tmp, file)
 }
 
-module.exports = { open, write }
+/**
+ * The SHA-256 of an archive's header (its file listing), as Electron checks
+ * it against a Mac app's Info.plist (ElectronAsarIntegrity).
+ */
+function headerHash (file) {
+  const fd = fs.openSync(file, 'r')
+  try {
+    const head = Buffer.alloc(16)
+    fs.readSync(fd, head, 0, 16, 0)
+    const json = Buffer.alloc(head.readUInt32LE(12))
+    fs.readSync(fd, json, 0, json.length, 16)
+    return require('crypto').createHash('sha256').update(json).digest('hex')
+  } finally {
+    fs.closeSync(fd)
+  }
+}
+
+module.exports = { open, write, headerHash }

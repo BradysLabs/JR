@@ -1,0 +1,54 @@
+# Builds JR for Mac on GitHub's Mac machines (BradysLabs).
+#
+# Runs by itself when a release is published, and attaches the Mac downloads
+# to that release. Can also be run by hand from the Actions tab for a tag
+# that already has a release.
+
+name: Mac build
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and attach to (like v0.1.1)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-14
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Build the Mac app (Apple Silicon and Intel)
+        run: npx electron-builder build --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Keep a copy on this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: JR-mac
+          path: dist/*.dmg
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/*.dmg --clobber

@@ -57,6 +57,7 @@ async function start () {
   requestAnimationFrame(() => { $('splashLogo').style.transform = 'scale(1)'; $('splashLogo').style.opacity = 1 })
   const details = {}
   boot = await window.jr.boot()
+  if (boot.platform === 'darwin') document.documentElement.classList.add('mac')
   invite = boot.invite
   $('tbVersion').textContent = 'v' + boot.version
   $('splashVersion').textContent = 'v' + boot.version

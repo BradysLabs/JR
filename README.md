@@ -6,7 +6,17 @@ JR is for members of the [JR Discord](https://discord.gg/ENu6SpVrwn). You sign i
 
 ## Install
 
-Download `JR-Setup-<version>.exe` from [Releases](https://github.com/BradysLabs/JR/releases) and run it. JR updates itself when a new version comes out.
+You need [AJ Classic](https://www.animaljam.com) installed first.
+
+**Windows:** download `JR-Setup-<version>.exe` from [Releases](https://github.com/BradysLabs/JR/releases) and run it. JR updates itself when a new version comes out.
+
+**Mac:** download `JR-<version>-mac-arm64.dmg` for Apple Silicon (M1 and newer) or `JR-<version>-mac-x64.dmg` for Intel Macs. Open it and drag JR into Applications. JR isn't signed by Apple, so the first time you open it, right-click JR in Applications and choose **Open**, then **Open** again. If macOS says JR is damaged, run this in Terminal once, then open it again:
+
+```
+xattr -cr /Applications/JR.app
+```
+
+On Mac, JR tells you when a new version is out, and you download it the same way.
 
 ## What JR does
 
@@ -34,6 +44,7 @@ npm install
 npm start        run JR
 npm test         run the tests
 npm run build    build the Windows installer into dist/
+npm run build:mac  build the Mac app (on a Mac); GitHub builds it for releases
 ```
 
 Discord Rich Presence uses the `discord-presence` art asset. Upload `assets/discord-presence.png` in the Discord Developer Portal under **Rich Presence → Art Assets** with the asset key `discord-presence` (the filename without its extension). The app icon on **General Information** is separate from Rich Presence art.
