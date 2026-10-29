@@ -1,4 +1,33 @@
 {
+  "0.2.0": {
+    "date": "2026-10",
+    "items": [
+      {
+        "title": "JR inside Animal Jam",
+        "text": "JR's tools now live on the game's own screens: worth in your inventory, den and trades, Rooms and Auto Adventures tabs on the World Map, an Auto Advertise button by the chat bar, and JR's settings in the game's Settings window."
+      },
+      {
+        "title": "More Sorts",
+        "text": "Click Sort By in your inventory for more ways to sort: value, rares, Diamond and members items, most copies, color and A to Z. The den editor has them too."
+      },
+      {
+        "title": "Pick a Color",
+        "text": "Every color the game has in Edit Animal, a color code box, an eyedropper and a full color picker. Turn on True color to see your animal in the exact color you picked (only you see it)."
+      },
+      {
+        "title": "New sitting poses",
+        "text": "Front, Back and Mirror on the Actions window: sit facing you, facing away, or flip the pose you're in."
+      },
+      {
+        "title": "More in the game",
+        "text": "Save Outfit, Try On and Glow in Edit Animal, Art Studio pictures, Streaming mode with a Display Name, F2 screenshots and smoother busy rooms."
+      },
+      {
+        "title": "First time: a one-time download",
+        "text": "JR builds its in-game features from your own game file, so the first time you play it downloads about 70 MB of tools (Java and FFDec) and builds in the background. When it says they're ready, close the game and open it again."
+      }
+    ]
+  },
   "0.1.1": {
     "date": "2026-10",
     "items": [
