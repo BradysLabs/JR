@@ -2,7 +2,7 @@
 
 JR is a plugin toolkit for Animal Jam Classic, made by **BradysLabs**. It replaces Jam Reborn.
 
-JR is for members of the [JR Discord](https://discord.gg/ENu6SpVrwn). You sign in with Discord the first time you open it.
+JR is for members of the [JR Discord]([https://discord.gg/H2QX8bCHCR). You sign in with Discord the first time you open it.
 
 ## Install
 
