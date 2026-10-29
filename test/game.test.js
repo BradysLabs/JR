@@ -217,6 +217,10 @@ test('game server only listens on this computer', async () => {
 
 // A stand-in for "AJ Classic.app": program in Contents/MacOS, the archive in
 // Contents/Resources, framework symlinks, and the archive checksum in Info.plist.
+// Mac app bundles need Mac file permissions and symlinks, so these run on
+// Macs (and Linux), not Windows. GitHub's Mac build runs them.
+const ON_WINDOWS = process.platform === 'win32' && 'Mac app bundles need Mac file permissions and symlinks'
+
 function fakeMacApp (folder) {
   const app = path.join(folder, 'AJ Classic.app')
   const c = path.join(app, 'Contents')
@@ -250,7 +254,7 @@ function fakeMacApp (folder) {
   return app
 }
 
-test('mac: finds AJ Classic in Applications (or ~/Applications), not other apps', () => {
+test('mac: finds AJ Classic in Applications (or ~/Applications), not other apps', { skip: ON_WINDOWS }, () => {
   const apps = tmp(); const userApps = tmp()
   assert.equal(install.findOfficial({ platform: 'darwin', appFolders: [apps, userApps] }), null)
   fs.mkdirSync(path.join(apps, 'Something Else.app'))
@@ -261,7 +265,7 @@ test('mac: finds AJ Classic in Applications (or ~/Applications), not other apps'
   assert.equal(install.findOfficial({ platform: 'win32', env: {}, home: tmp() }), null)
 })
 
-test('mac: the copy stays a working app bundle: symlinks kept, archive patched, checksum updated, signed ad hoc', () => {
+test('mac: the copy stays a working app bundle: symlinks kept, archive patched, checksum updated, signed ad hoc', { skip: ON_WINDOWS }, () => {
   const official = fakeMacApp(tmp())
   const gameDir = path.join(tmp(), 'game')
   const ran = []
@@ -294,7 +298,7 @@ test('mac: the copy stays a working app bundle: symlinks kept, archive patched, 
   assert.equal(install.ensureGame({ officialDir: official, gameDir, platform: 'darwin', run }).rebuilt, true)
 })
 
-test('mac: a signing failure is explained, and leaves no half-built copy', () => {
+test('mac: a signing failure is explained, and leaves no half-built copy', { skip: ON_WINDOWS }, () => {
   const official = fakeMacApp(tmp())
   const gameDir = path.join(tmp(), 'game')
   const run = (cmd) => { if (cmd === 'codesign') throw new Error('codesign failed: nope') }
@@ -302,7 +306,7 @@ test('mac: a signing failure is explained, and leaves no half-built copy', () =>
   assert.deepEqual(fs.readdirSync(path.dirname(gameDir)).filter(n => n.startsWith('game-') && !n.endsWith('.building')), [])
 })
 
-test('mac: no checksum in Info.plist is fine (the app doesn\'t check it)', () => {
+test('mac: no checksum in Info.plist is fine (the app doesn\'t check it)', { skip: ON_WINDOWS }, () => {
   const app = fakeMacApp(tmp())
   fs.writeFileSync(path.join(app, 'Contents', 'Info.plist'), '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>AJ Classic</string></dict></plist>')
   assert.equal(install.updateAsarIntegrity(app, path.join(app, 'Contents', 'Resources', 'app.asar'), () => {}), false)
