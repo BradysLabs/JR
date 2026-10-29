@@ -462,6 +462,7 @@ function render () {
   list.innerHTML = ''
   selected = null
   document.getElementById('join').disabled = true
+  updateFavoriteButton()
 
   let lastCat = null
   matches.forEach(r => {
@@ -497,6 +498,7 @@ function render () {
       row.classList.add('selected')
       selected = r
       document.getElementById('join').disabled = false
+      updateFavoriteButton()
       setStatus('', false)
     })
 
@@ -505,6 +507,37 @@ function render () {
 
   const countEl = document.getElementById('count')
   if (countEl) countEl.textContent = matches.length + ' room' + (matches.length === 1 ? '' : 's')
+}
+
+function savedRoomFavorites () {
+  if (!jamRef || !jamRef.storage) return []
+  const favorites = jamRef.storage.get('favorites', [])
+  return Array.isArray(favorites) ? favorites : []
+}
+
+function updateFavoriteButton () {
+  const button = document.getElementById('favorite')
+  if (!button) return
+  button.disabled = !selected || !selected.joinable || !jamRef
+  if (!selected) { button.textContent = 'Add to Game Favorites'; return }
+  const saved = savedRoomFavorites().some(room => room.path === selected.path)
+  button.textContent = saved ? 'Remove from Game Favorites' : 'Add to Game Favorites'
+}
+
+function toggleFavorite () {
+  if (!selected || !selected.joinable || !jamRef) return
+  const favorites = savedRoomFavorites()
+  const existing = favorites.findIndex(room => room.path === selected.path)
+  if (existing >= 0) {
+    favorites.splice(existing, 1)
+    setStatus(`Removed ${selected.category} from Game Favorites.`, false)
+  } else {
+    favorites.unshift({ name: selected.name, path: selected.path, category: selected.category, joinable: true, ocean: !!selected.ocean })
+    favorites.splice(8)
+    setStatus(`Added ${selected.category} to Game Favorites.`, false)
+  }
+  jamRef.storage.set('favorites', favorites)
+  updateFavoriteButton()
 }
 
 function tag (text, cls) {
@@ -546,6 +579,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const showAllEl = document.getElementById('showAll')
   if (showAllEl) showAllEl.addEventListener('change', render)
   document.getElementById('join').addEventListener('click', joinSelected)
+  document.getElementById('favorite').addEventListener('click', toggleFavorite)
 
   jamRef = await waitForJam()
+  updateFavoriteButton()
 })

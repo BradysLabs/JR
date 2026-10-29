@@ -20,6 +20,7 @@ On Mac, JR tells you when a new version is out, and you download it the same way
 
 ## What JR does
 
+- **Built into the game:** JR's tools appear on Animal Jam's own screens. Worth in your inventory, den and trades, More Sorts, Pick a Color (with True color), Front/Back/Mirror sit poses, Rooms and Auto Adventures tabs on the World Map, Art Studio pictures, Save Outfit, Try On, Glow, Streaming mode and F2 screenshots.
 - **Profiles:** each profile opens in its own window with its own settings and login, so you can play two accounts at once.
 - **Plugins:** packet tools, adventures (Phantoms, Bitter Sweets, Tiki Trouble), room browser, item previews, glow picker and more. Plugins written for Jam Reborn keep working. See [docs/plugins.md](docs/plugins.md).
 - **Trading:** shows what the other player offers, values from the Item Worth Wiki in Diamonds, and a favor scale.
@@ -30,6 +31,14 @@ On Mac, JR tells you when a new version is out, and you download it the same way
 - **Themes:** customize the home screen and pick a color theme.
 - **Anti-kick:** optional, keeps you from being logged out for being idle.
 - **Discord status:** shows JR on your Discord profile, with a link to the JR server.
+
+## In-game features: first launch
+
+JR adds its tools by changing the game's own code. WildWorks' game file can't be shared, so JR makes the change on your computer, from the game file Animal Jam gives you:
+
+- The first time you play, JR downloads [JPEXS FFDec](https://github.com/jindrapetrik/jpexs-decompiler) and a [Java runtime](https://adoptium.net) for it (about 70 MB, once), then builds JR's version of the game in the background. That takes a minute or two.
+- When JR says the in-game features are ready, close the game and open it again.
+- JR builds again on its own when Animal Jam updates or JR's in-game features change. Until a build is ready, the game works as normal without them.
 
 ## Before you use it
 
@@ -47,10 +56,12 @@ npm run build    build the Windows installer into dist/
 npm run build:mac  build the Mac app (on a Mac); GitHub builds it for releases
 ```
 
+JR's changes to the game live in `tools/game-mod` (`patch.py`, `anchors.py`, `as/JRUI.as`). `tools/game-mod/build.sh` builds the game file with them and records `src/game/mod/edits.json`, which players' JR replays to build the same thing. Commit `edits.json` with any change to the game edits.
+
 Discord Rich Presence uses the `discord-presence` art asset. Upload `assets/discord-presence.png` in the Discord Developer Portal under **Rich Presence → Art Assets** with the asset key `discord-presence` (the filename without its extension). The app icon on **General Information** is separate from Rich Presence art.
 
 ## License
 
 JR is open source under the [MIT License](LICENSE). Copyright (c) 2026 BradysLabs.
 
-Animal Jam is a trademark of WildWorks, Inc. Item values come from the Animal Jam Item Worth Wiki (aj-item-worth.fandom.com), CC BY-SA.
+Animal Jam is a trademark of WildWorks, Inc. JR downloads JPEXS FFDec (GNU GPL v3 / LGPL v3) and Eclipse Temurin (GPL v2 with Classpath Exception) from their official releases; they aren't part of JR. Item values come from the Animal Jam Item Worth Wiki (aj-item-worth.fandom.com), CC BY-SA.

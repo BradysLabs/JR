@@ -4,3 +4,11 @@ dist/
 .DS_Store
 .transfer/
 data/worth/.cache/
+research/
+/ajclient*.swf
+tools/ffdec/
+/game-mods/
+tools/game-mod/.restore-map/
+/logs/
+/flashlib/
+/themes/

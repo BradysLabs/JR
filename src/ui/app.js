@@ -105,7 +105,6 @@ function renderStatus () {
   $('playBtn').classList.toggle('playing', playing)
   $('playLabel').textContent = playing ? 'Playing' : 'Play'
   renderOverview()
-  // Discord Rich Presence (the room is left out in streaming mode).
   const presenceRoom = connected && room && !engine.application.streamingMode.enabled ? prettyRoom(room) : undefined
   ipcRenderer.send('presence', { connected, playing, room: presenceRoom })
 }
@@ -627,6 +626,9 @@ function parseTradeListUpdate (parts) {
 }
 
 function renderTrade () {
+  // The game's trade window shows the same values (JR's in-game Worth button).
+  const asItem = (it) => ({ kind: it.kind, defId: it.id == null ? null : Number(it.id), color: it.color == null ? null : it.color })
+  try { engine.dispatch.setState('jrTrade', { active: trade.active, user: trade.user, theirs: trade.offered.map(asItem), mine: trade.active ? tradeMineItems().map(asItem) : [] }) } catch (_) {}
   $('tradeEmpty').classList.toggle('hidden', trade.active)
   $('trade').classList.toggle('hidden', !trade.active)
   if (!trade.active) return
@@ -694,8 +696,7 @@ $('netHide').value = engine.settings.netHide || ''
 $('netHide').oninput = () => { engine.updateSettings({ netHide: $('netHide').value }); updatePacketFilter(); renderLogs() }
 $('clearLogs').onclick = () => { if (logTab === 'console') engine.logs.length = 0; else engine.packets.length = 0; renderLogs() }
 
-// Text that's safe to copy or share: no login tokens or emails, and your
-// username hidden too when streaming mode is on.
+// Text that's safe to copy or share: no login tokens or emails.
 const shareable = (text) => engine.application.hideSecrets(engine.application.streamingMode.mask(text))
 const levelName = (type) => (type === 'notify' ? 'info' : type === 'success' ? 'ok' : type)
 const logLine = (e) => `${time(e.t)} ${levelName(e.type).toUpperCase()} ${engine.application.streamingMode.mask(e.message)}`
@@ -934,12 +935,20 @@ function renderSettings () {
   greeting.value = s.homeGreeting || ''
   greeting.oninput = () => { engine.updateSettings({ homeGreeting: greeting.value }); renderHome() }
 
+  const streamName = el('input')
+  streamName.maxLength = 20
+  streamName.placeholder = 'Incognito'
+  streamName.value = s.streamingName || ''
+  streamName.onchange = () => { engine.updateSettings({ streamingName: streamName.value.replace(/[^A-Za-z0-9 _.]/g, '').trim().slice(0, 20) }); streamName.value = engine.settings.streamingName; renderStatus(); renderLogs() }
+
   const rate = el('input')
   rate.type = 'number'; rate.min = 1; rate.max = 100; rate.value = s.packetsPerSecond
   rate.onchange = () => engine.updateSettings({ packetsPerSecond: Math.max(1, Math.min(100, Number(rate.value) || 20)) })
 
   group('GENERAL', [
     row('Streaming mode', 'Hides your username in JR and in plugins that support it.', toggle('streamingMode', () => { renderStatus(); renderLogs() })),
+    row('Incognito', 'With Streaming mode on, the game and JR show your Display Name instead of your username. Only you see it. Name tags change right away, everything else at your next login.', toggle('incognito', () => { renderStatus(); renderLogs() })),
+    row('Display Name', 'Letters, numbers, spaces, _ and . (up to 20). You can also change it in the game\u2019s Settings.', streamName),
     row('Open the game when this profile opens', 'Skips Home and goes straight to Animal Jam.', toggle('openGameOnStart')),
     row('Open Trading when a trade starts', 'Shows what the other player is offering.', toggle('tradeHelper', syncTradeSwitch)),
     row('Packet limit', 'Most packets plugins can send each second. Higher can get you kicked.', rate),
@@ -960,6 +969,8 @@ function renderSettings () {
   homeGroup.id = 'homeSettings'
   group('GAME', [
     row('Anti-kick', 'Stops Animal Jam from logging you out for being idle. Sends a keep-alive every 30 seconds. Turning it on or off takes effect the next time you open the game.', toggle('antiKick')),
+    row('Worth in item names', 'Adds the Item Worth Wiki value to item names inside Animal Jam, like \u201cWorn Blanket \u00b7 A Few RIMs\u201d. Items whose worth depends on color show their Diamond range. Only you see it. Takes effect the next time you open the game.', toggle('worthInNames')),
+    row('Worth bubble on hover', 'Hover an item in Animal Jam to see its worth for that exact color: Diamonds, Black Long collars and the wiki\u2019s trade values. Only you see it. Takes effect the next time you open the game.', toggle('worthBubble')),
     row('Game server', engine.dispatch.connected ? 'Connected now.' : 'Shows after you log in.', value(engine.gameServer.session ? engine.gameServer.session.upstream.host : '—')),
     row('Game proxy', 'The local port the game connects to.', value(`127.0.0.1:${engine.proxy.port}`)),
     row('Secure connection to Animal Jam', 'Keep this on unless support asks you to change it.', toggle('secureUpstream')),

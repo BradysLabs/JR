@@ -11,6 +11,7 @@
 
 const zlib = require('zlib')
 const lzma = require('./lzma')
+const abc = require('./abc')
 
 /** Returns the uncompressed SWF body (everything after the 8-byte header) and the version. */
 function unpack (swf) {
@@ -288,17 +289,296 @@ function patchIdleKick (body) {
 }
 
 /**
- * All of JR's changes to the game file.
- * @param {{antiIdle?: boolean}} [options] antiIdle: turn off the game's idle logout
- * @returns {{swf: Buffer, shopRefresh: string, idleKick: string}}
+ * Item hover: when the game shows an item's tooltip, it also tells the page
+ * which item is under the mouse, so JR can show its worth bubble:
+ *
+ *   ExternalInterface.call("jrItemOver", item.defId, item.color, item.name,
+ *     stage.mouseX, stage.mouseY, stage.stageWidth, stage.stageHeight)
+ *
+ * is added to ItemWindowBase.onWindowRollOver, right after the game starts
+ * its own tooltip, and ExternalInterface.call("jrItemOut") to
+ * onWindowRollOut, right after it hides it. Both only run when
+ * ExternalInterface is available. Everything is checked first; if anything
+ * isn't as expected the game file is left alone.
+ * @returns {{body: Buffer, status: 'patched'|'missing'}}
  */
-function patchClient (swf, { antiIdle = false } = {}) {
-  const secure = disableSecureMode(swf) // throws if the game changed too much
-  const { version, body } = unpack(secure.swf)
-  const out = Buffer.from(body)
-  const shopRefresh = patchShopRefresh(out)
-  const idleKick = antiIdle ? patchIdleKick(out) : 'off'
-  return { swf: pack(version, out), shopRefresh, idleKick }
+function patchItemHover (body) {
+  for (const tag of tags(body)) {
+    if (tag.code !== 82 && tag.code !== 72) continue
+    let abcStart = tag.dataStart
+    if (tag.code === 82) {
+      abcStart += 4
+      while (body[abcStart] !== 0) abcStart++
+      abcStart++
+    }
+    const A = abc.parse(body, abcStart)
+    const over = abc.findMethod(A, 'ItemWindowBase', 'onWindowRollOver')
+    const out = abc.findMethod(A, 'ItemWindowBase', 'onWindowRollOut')
+    if (!over || !out || over.exceptions || out.exceptions) continue
+
+    const names = {
+      ExternalInterface: abc.publicName(A, 'flash.external', 'ExternalInterface'),
+      available: abc.publicName(A, '', 'available'),
+      call: abc.publicName(A, '', 'call'),
+      defId: abc.publicName(A, '', 'defId'),
+      color: abc.publicName(A, '', 'color'),
+      name: abc.publicName(A, '', 'name'),
+      stage: abc.publicName(A, '', 'stage'),
+      mouseX: abc.publicName(A, '', 'mouseX'),
+      mouseY: abc.publicName(A, '', 'mouseY'),
+      stageWidth: abc.publicName(A, '', 'stageWidth'),
+      stageHeight: abc.publicName(A, '', 'stageHeight')
+    }
+    if (Object.values(names).some(v => !v)) return { body, status: 'missing' }
+
+    const overCode = body.subarray(over.codeStart, over.codeStart + over.codeLength)
+    const outCode = body.subarray(out.codeStart, out.codeStart + out.codeLength)
+    const overList = abc.decode(overCode)
+    const outList = abc.decode(outCode)
+    // The method's own reference to the hovered item (a private field).
+    const currItemLex = overList.find(i => i.op === 0x60 && abc.nameOf(A, i.operands[0]) === '_currItem')
+    const startTimer = overList.find(i => i.op === 0x4F && abc.nameOf(A, i.operands[0]) === 'startTimer')
+    const hide = outList.find(i => i.op === 0x4F && abc.nameOf(A, i.operands[0]) === 'resetTimerAndSetVisibility')
+    if (!currItemLex || !startTimer || !hide) return { body, status: 'missing' }
+    const overAt = startTimer.at + startTimer.length
+    const outAt = hide.at + hide.length
+    if (overCode[overAt] !== 0x47 || outCode[outAt] !== 0x47) return { body, status: 'missing' } // returnvoid
+
+    const strings = abc.addStrings(A, body, ['jrItemOver', 'jrItemOut'])
+    const u = abc.u30Bytes
+    const op = (code, ...args) => [code, ...args.flatMap(a => u(a))]
+    const guarded = (inner) => {
+      // if (ExternalInterface.available) { inner }
+      const head = [...op(0x60, names.ExternalInterface), ...op(0x66, names.available)]
+      return [...head, 0x12, ...abc.s24Bytes(inner.length), ...inner] // iffalse past inner
+    }
+    const currItem = currItemLex.operands[0]
+    const overBytes = guarded([
+      ...op(0x60, names.ExternalInterface),
+      ...op(0x2C, strings.indexes.jrItemOver),
+      ...op(0x60, currItem), ...op(0x66, names.defId),
+      ...op(0x60, currItem), ...op(0x66, names.color),
+      ...op(0x60, currItem), ...op(0x66, names.name),
+      0xD0, ...op(0x66, names.stage), ...op(0x66, names.mouseX),
+      0xD0, ...op(0x66, names.stage), ...op(0x66, names.mouseY),
+      0xD0, ...op(0x66, names.stage), ...op(0x66, names.stageWidth),
+      0xD0, ...op(0x66, names.stage), ...op(0x66, names.stageHeight),
+      ...op(0x4F, names.call, 8)
+    ])
+    const outBytes = guarded([
+      ...op(0x60, names.ExternalInterface),
+      ...op(0x2C, strings.indexes.jrItemOut),
+      ...op(0x4F, names.call, 1)
+    ])
+
+    const edits = [
+      abc.bodyEdit(over, abc.insertCode(overCode, overAt, overBytes), 9),
+      abc.bodyEdit(out, abc.insertCode(outCode, outAt, outBytes), 2)
+    ]
+    if (strings.edit) edits.push(strings.edit)
+    let result = abc.splice(body, edits)
+    // The tag's length changed by the same amount the block did.
+    const delta = result.length - body.length
+    if (tag.code === 82 || tag.code === 72) {
+      if ((body.readUInt16LE(tag.start) & 0x3F) !== 0x3F) return { body, status: 'missing' }
+      result = Buffer.from(result)
+      result.writeUInt32LE(tag.length + delta, tag.start + 2)
+    }
+    return { body: result, status: 'patched' }
+  }
+  return { body, status: 'missing' }
 }
 
-module.exports = { unpack, pack, tags, readAbc, disableSecureMode, patchShopRefresh, patchIdleKick, patchClient }
+/** The ABC block of an unpacked SWF body: { tag, abcStart } or null. */
+function abcTag (body) {
+  for (const tag of tags(body)) {
+    if (tag.code !== 82 && tag.code !== 72) continue
+    let abcStart = tag.dataStart
+    if (tag.code === 82) {
+      abcStart += 4
+      while (body[abcStart] !== 0) abcStart++
+      abcStart++
+    }
+    return { tag, abcStart }
+  }
+  return null
+}
+
+/** Applies edits to the ABC block and fixes its tag's length. */
+function applyAbcEdits (body, tag, edits) {
+  if ((body.readUInt16LE(tag.start) & 0x3F) !== 0x3F) throw new Error('Unexpected short ABC tag')
+  const result = Buffer.from(abc.splice(body, edits))
+  result.writeUInt32LE(tag.length + (result.length - body.length), tag.start + 2)
+  return result
+}
+
+/**
+ * JR's rows in Animal Jam's own Settings window.
+ *
+ * AJ builds that window from a list of row records ({type, frame, labelTxt,
+ * onTxt, offTxt}) shown by ItemWindowToggle. Three additions:
+ *
+ *   MySettings.setupContent   before the list is shown, adds the rows the
+ *                             page gives for ExternalInterface.call("jrSettingsRows")
+ *   ItemWindowToggle.setChildrenAndInitialConditions
+ *                             a JR row (one with a `key`) gets its own label,
+ *                             On/Off words and state, and none of AJ's setup
+ *   ItemWindowToggle.handleMouseDown
+ *                             clicking a JR row flips its switch and calls
+ *                             ExternalInterface.call("jrSettingToggle", key, value);
+ *                             AJ's own account settings are never touched
+ *
+ * Everything is checked first; if anything isn't as expected the file is
+ * left alone.
+ * @returns {{body: Buffer, status: 'patched'|'missing'}}
+ */
+function patchJrSettings (body) {
+  const found = abcTag(body)
+  if (!found) return { body, status: 'missing' }
+  const { tag, abcStart } = found
+  const A = abc.parse(body, abcStart)
+  const setup = abc.findMethod(A, 'MySettings', 'setupContent')
+  const draw = abc.findMethod(A, 'ItemWindowToggle', 'setChildrenAndInitialConditions')
+  const click = abc.findMethod(A, 'ItemWindowToggle', 'handleMouseDown')
+  if (!setup || !draw || !click) return { body, status: 'missing' }
+  const codeOf = (m) => body.subarray(m.codeStart, m.codeStart + m.codeLength)
+  const setupList = abc.decode(codeOf(setup))
+  const drawList = abc.decode(codeOf(draw))
+  const clickList = abc.decode(codeOf(click))
+  const str = (s) => { const i = A.strings.indexOf(s); return i > 0 ? i : null }
+
+  const n = {
+    EI: abc.publicName(A, 'flash.external', 'ExternalInterface'),
+    available: abc.publicName(A, '', 'available'),
+    call: abc.publicName(A, '', 'call'),
+    concat: abc.publicName(A, '', 'concat'),
+    key: abc.publicName(A, '', 'key'),
+    value: abc.publicName(A, '', 'value'),
+    // the names exactly as AJ's own code in these methods spells them
+    arrayType: abc.operandNamed(A, setupList, 0x80, 'Array'),
+    windowGenerator: abc.operandNamed(A, setupList, 0x5D, 'WindowGenerator'),
+    currItem: abc.operandNamed(A, drawList, 0x60, '_currItem'),
+    window: abc.operandNamed(A, drawList, 0x60, '_window'),
+    labelTxtCont: abc.operandNamed(A, drawList, 0x66, 'labelTxtCont'),
+    labelTxt: abc.operandNamed(A, drawList, 0x66, 'labelTxt'),
+    toggleBtn: abc.operandNamed(A, drawList, 0x66, 'toggleBtn'),
+    valueTxt: abc.operandNamed(A, drawList, 0x66, 'valueTxt'),
+    onTxt: abc.operandNamed(A, drawList, 0x66, 'onTxt'),
+    offTxt: abc.operandNamed(A, drawList, 0x66, 'offTxt'),
+    text: abc.operandNamed(A, drawList, 0x61, 'text'),
+    gotoAndStop: abc.operandNamed(A, drawList, 0x4F, 'gotoAndStop'),
+    clickCurrItem: abc.operandNamed(A, clickList, 0x60, '_currItem'),
+    currentTarget: abc.operandNamed(A, clickList, 0x66, 'currentTarget'),
+    clickToggleBtn: abc.operandNamed(A, clickList, 0x66, 'toggleBtn'),
+    gotoAndPlay: abc.operandNamed(A, clickList, 0x4F, 'gotoAndPlay'),
+    startingOn: str('startingOn'),
+    startingOff: str('startingOff'),
+    on: str('on'),
+    off: str('off')
+  }
+  if (Object.values(n).some(v => !v)) return { body, status: 'missing' }
+
+  // Where each addition goes.
+  const listAt = setupList.find(i => i.op === 0x5D && i.operands[0] === n.windowGenerator)
+  const listReady = setupList.some(i => i.op === 0x63 && i.operands[0] === 4 && listAt && i.at < listAt.at) // setlocal 4 = the row list
+  // AJ's second look at the row, by its frame: "getlex _currItem; getproperty frame; setlocal2".
+  const drawAt = drawList.find((i, k) => i.op === 0x60 && i.operands[0] === n.currItem && drawList[k + 1] && drawList[k + 1].op === 0x66 &&
+    abc.nameOf(A, drawList[k + 1].operands[0]) === 'frame' && drawList[k + 2] && drawList[k + 2].op === 0xD6)
+  const stop = clickList.find(i => i.op === 0x4F && abc.nameOf(A, i.operands[0]) === 'stopPropagation')
+  if (!listAt || !listReady || !drawAt || !stop || clickList[0].at !== 0) return { body, status: 'missing' }
+
+  const strings = abc.addStrings(A, body, ['jrSettingsRows', 'jrSettingToggle'])
+  const u = abc.u30Bytes
+  const op = (code, ...args) => [code, ...args.flatMap(a => u(a))]
+  const IFFALSE = 0x12
+  const JUMP = 0x10
+
+  // rows = rows.concat(ExternalInterface.call("jrSettingsRows")) when it gives an array
+  const listCode = abc.assemble([
+    op(0x60, n.EI), op(0x66, n.available), { jump: IFFALSE, to: 'end' },
+    op(0x60, n.EI), op(0x2C, strings.indexes.jrSettingsRows), op(0x46, n.call, 1),
+    [0x2A], { jump: IFFALSE, to: 'drop' }, // dup; nothing given
+    op(0x62, 4), [0x2B], op(0x46, n.concat, 1), op(0x80, n.arrayType), op(0x63, 4), // getlocal 4; swap; concat; coerce Array; setlocal 4
+    { jump: JUMP, to: 'end' },
+    { label: 'drop' }, [0x29], // pop
+    { label: 'end' }
+  ])
+
+  // A JR row: its own words and state, then nothing else.
+  const toggle = [...op(0x60, n.window), ...op(0x66, n.toggleBtn), ...op(0x66, n.toggleBtn)]
+  const drawCode = abc.assemble([
+    op(0x60, n.currItem), op(0x66, n.key), { jump: IFFALSE, to: 'end' },
+    op(0x60, n.window), op(0x66, n.labelTxtCont), op(0x66, n.labelTxt), op(0x60, n.currItem), op(0x66, n.labelTxt), op(0x61, n.text),
+    toggle, op(0x66, n.valueTxt), op(0x66, n.onTxt), op(0x60, n.currItem), op(0x66, n.onTxt), op(0x61, n.text),
+    toggle, op(0x66, n.valueTxt), op(0x66, n.offTxt), op(0x60, n.currItem), op(0x66, n.offTxt), op(0x61, n.text),
+    toggle, op(0x60, n.currItem), op(0x66, n.value), { jump: IFFALSE, to: 'off' },
+    op(0x2C, n.startingOn), { jump: JUMP, to: 'set' },
+    { label: 'off' }, op(0x2C, n.startingOff),
+    { label: 'set' }, op(0x4F, n.gotoAndStop, 1),
+    [0x47], // returnvoid
+    { label: 'end' }
+  ])
+
+  // Clicking a JR row: flip it, animate it, tell JR.
+  const item = op(0x60, n.clickCurrItem)
+  const clickCode = abc.assemble([
+    item, op(0x66, n.key), { jump: IFFALSE, to: 'end' },
+    item, item, op(0x66, n.value), [0x96], op(0x61, n.value), // value = !value
+    [0xD1], op(0x66, n.currentTarget), op(0x66, n.clickToggleBtn), item, op(0x66, n.value), { jump: IFFALSE, to: 'off' },
+    op(0x2C, n.on), { jump: JUMP, to: 'play' },
+    { label: 'off' }, op(0x2C, n.off),
+    { label: 'play' }, op(0x4F, n.gotoAndPlay, 1),
+    op(0x60, n.EI), op(0x66, n.available), { jump: IFFALSE, to: 'done' },
+    op(0x60, n.EI), op(0x2C, strings.indexes.jrSettingToggle), item, op(0x66, n.key), item, op(0x66, n.value), op(0x4F, n.call, 3),
+    { label: 'done' }, [0x47],
+    { label: 'end' }
+  ])
+
+  const edits = [
+    abc.bodyInsert(body, setup, listAt.at, listCode, { landOnNew: true, maxStack: 4 }),
+    abc.bodyInsert(body, draw, drawAt.at, drawCode, { landOnNew: true, maxStack: 6 }),
+    abc.bodyInsert(body, click, stop.at + stop.length, clickCode, { landOnNew: true, maxStack: 6 })
+  ]
+  if (strings.edit) edits.push(strings.edit)
+  return { body: applyAbcEdits(body, tag, edits), status: 'patched' }
+}
+
+/**
+ * All of JR's changes to the game file.
+ * @param {{antiIdle?: boolean, itemHover?: boolean}} [options]
+ *   antiIdle: turn off the game's idle logout; itemHover: tell JR which item
+ *   is under the mouse (for the worth bubble)
+ *   jrSettings: JR's rows in AJ's own Settings window
+ * @returns {{swf: Buffer, shopRefresh: string, idleKick: string, itemHover: string, jrSettings: string}}
+ */
+function patchClient (swf, { antiIdle = false, itemHover = false, jrSettings = false } = {}) {
+  const secure = disableSecureMode(swf) // throws if the game changed too much
+  const { version, body } = unpack(secure.swf)
+  let out = Buffer.from(body)
+  const shopRefresh = patchShopRefresh(out)
+  const idleKick = antiIdle ? patchIdleKick(out) : 'off'
+  let hover = 'off'
+  if (itemHover) {
+    // Last: it changes lengths, the other patches don't.
+    try {
+      const result = patchItemHover(out)
+      out = result.body
+      hover = result.status
+    } catch (_) {
+      hover = 'missing'
+    }
+  }
+  let settingsRows = 'off'
+  if (jrSettings) {
+    try {
+      const result = patchJrSettings(out)
+      out = result.body
+      settingsRows = result.status
+    } catch (_) {
+      settingsRows = 'missing'
+    }
+  }
+  return { swf: pack(version, out), shopRefresh, idleKick, itemHover: hover, jrSettings: settingsRows }
+}
+
+module.exports = { unpack, pack, tags, readAbc, disableSecureMode, patchShopRefresh, patchIdleKick, patchItemHover, patchJrSettings, patchClient }

@@ -33,6 +33,7 @@ class Amf3Reader {
   }
 
   string () {
+    const at = this.pos
     const ref = this.u29()
     if (!(ref & 1)) return this.strings[ref >> 1]
     const len = ref >> 1
@@ -40,6 +41,9 @@ class Amf3Reader {
     const s = this.buf.toString('utf8', this.pos, this.pos + len)
     this.pos += len
     this.strings.push(s)
+    // Where this string sits (its length header and its bytes), so callers
+    // can change strings without rebuilding the rest of the data.
+    if (this.onString) this.onString({ start: at, end: this.pos, value: s })
     return s
   }
 

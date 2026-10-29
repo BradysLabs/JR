@@ -9,17 +9,22 @@
  *   GET  /client/<v>/ajclient.swf   the official game file, patched on this
  *                               computer so it talks to JR without TLS
  *   *    /content/...           passed through to Animal Jam's content server
+ *                               (a file contentFilter wants is changed first)
  *   *    /md/...                passed through to Animal Jam's media server
  *   GET  /crossdomain.xml       lets the game load from here
+ *   GET  /jr/worth?defId=&color=&name=   worth of one item, for JR's hover bubble
+ *   GET  /jr/ingame/state?t=    what JR's in-game panel shows   (t = this
+ *   POST /jr/ingame/action?t=   something the panel asked for     launch's token)
  */
 
 const http = require('http')
 const path = require('path')
+const crypto = require('crypto')
 const { EventEmitter } = require('events')
 const fs = (() => { try { return require('original-fs') } catch (_) { return require('fs') } })()
 const swf = require('./swf')
 
-const CLIENT_PATCH = 3
+const CLIENT_PATCH = 5
 const { request } = require('./http')
 
 const CROSSDOMAIN = '<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" /></cross-domain-policy>'
@@ -56,11 +61,30 @@ class GameServer extends EventEmitter {
    * @param {string} options.cacheDir where patched game files are kept
    * @param {(e: {type: string, message: string}) => void} [options.log]
    * @param {typeof request} [options.request] HTTP client (Node-based by default)
+   * @param {{wants: (name: string) => boolean, apply: (name: string, buf: Buffer) => Promise<Buffer|null>}} [options.contentFilter]
+   *   changes content files on their way to the game. `name` is the path under
+   *   the content server ("<version>/defPacks/<hash>"). apply returns the new
+   *   bytes, or null to send the original.
    */
-  constructor ({ proxyPort, cacheDir, log = () => {}, request: http = request, clientOptions = () => ({}) }) {
+  constructor ({ proxyPort, cacheDir, modsDir = null, modBuilder = null, log = () => {}, request: http = request, clientOptions = () => ({}), contentFilter = null, contentSource = null, worthLookup = null }) {
     super()
+    // Gives the game other copies of some content files (Seasons: rooms).
+    // { wants(name), get(name, liveUrl) -> Buffer, or null to pass through }
+    this.contentSource = contentSource
+    this.contentFilter = contentFilter
+    this.worthLookup = worthLookup
+    // JR's in-game panel: { state(), action(request) }, set by the engine.
+    this.ingame = null
+    // Only JR's own copy of the game gets this (on its command line), so
+    // other programs and web pages on this computer can't drive JR.
+    this.token = crypto.randomBytes(24).toString('hex')
     this.proxyPort = proxyPort
     this.cacheDir = cacheDir
+    // JR's in-game builds of the game file, per game version (see tools/game-mod).
+    this.modsDir = modsDir
+    // Builds them on this computer when there isn't one (src/game/mod/build.js).
+    this.modBuilder = modBuilder
+    this.modded = false
     this.clientOptions = clientOptions
     this.log = log
     this.http = http
@@ -115,6 +139,46 @@ class GameServer extends EventEmitter {
       return res.end(JSON.stringify(answer))
     }
 
+    if (url.pathname.startsWith('/jr/ingame/')) {
+      const given = Buffer.from(String(url.searchParams.get('t') || ''))
+      const token = Buffer.from(this.token)
+      if (given.length !== token.length || !crypto.timingSafeEqual(given, token) || !this.ingame) {
+        res.writeHead(403, { ...cors, 'Content-Type': 'application/json' })
+        return res.end('{"error":"not allowed"}')
+      }
+      let status = 200
+      let answer
+      try {
+        if (url.pathname === '/jr/ingame/state' && req.method === 'GET') answer = await this.ingame.state()
+        else if (url.pathname === '/jr/ingame/action' && req.method === 'POST') {
+          const body = JSON.parse((await readBody(req)).toString('utf8') || '{}')
+          answer = await this.ingame.action(body)
+        } else { status = 404; answer = { error: 'not found' } }
+      } catch (error) {
+        status = 400
+        answer = { error: error.message }
+      }
+      res.writeHead(status, { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' })
+      return res.end(JSON.stringify(answer === undefined ? { ok: true } : answer))
+    }
+
+    if (url.pathname === '/jr/worth' && req.method === 'GET') {
+      let answer = { found: false }
+      try {
+        if (this.worthLookup) {
+          answer = await this.worthLookup({
+            defId: url.searchParams.get('defId'),
+            color: url.searchParams.get('color'),
+            name: url.searchParams.get('name') || ''
+          }) || answer
+        }
+      } catch (error) {
+        answer = { found: false, error: error.message }
+      }
+      res.writeHead(200, { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' })
+      return res.end(JSON.stringify(answer))
+    }
+
     if (url.pathname === '/crossdomain.xml') {
       res.writeHead(200, { 'Content-Type': 'text/xml' })
       return res.end(CROSSDOMAIN)
@@ -131,7 +195,14 @@ class GameServer extends EventEmitter {
     if (pass && this.session) {
       const base = pass[1] === 'content' ? this.session.content : this.session.mdUrl
       if (!base) { res.writeHead(404); return res.end() }
-      return this._passThrough(req, res, new URL(pass[2] + url.search, base).toString())
+      const target = new URL(pass[2] + url.search, base).toString()
+      if (pass[1] === 'content' && req.method === 'GET' && this.contentSource && this.contentSource.wants(pass[2])) {
+        return this._sourced(req, res, target, pass[2])
+      }
+      if (pass[1] === 'content' && req.method === 'GET' && this.contentFilter && this.contentFilter.wants(pass[2])) {
+        return this._filtered(req, res, target, pass[2])
+      }
+      return this._passThrough(req, res, target)
     }
 
     res.writeHead(404, { 'Content-Type': 'text/plain' })
@@ -172,11 +243,33 @@ class GameServer extends EventEmitter {
     return answer
   }
 
+  /**
+   * JR's in-game build for this game version, when there is one: the game
+   * with JR's Settings rows, worth bubble and link to JR built in.
+   */
+  moddedClient (version, options = {}) {
+    let file = null
+    // A build in game-mods/ (made with tools/game-mod) comes first.
+    if (this.modsDir) {
+      const dev = path.join(this.modsDir, `ajclient-${version}${options.antiIdle ? '-awake' : ''}.swf`)
+      if (fs.existsSync(dev)) file = dev
+    }
+    if (!file && this.modBuilder) file = this.modBuilder.file(version, !!options.antiIdle)
+    if (!file) return null
+    if (!this.modded) this.log({ type: 'success', message: `Using JR\u2019s in-game build of game version ${version}.` })
+    this.modded = true
+    return fs.readFileSync(file)
+  }
+
   /** The official client for this version, with secure mode turned off. Cached. */
   async patchedClient (version) {
     // Bump CLIENT_PATCH when JR's changes to the game file change, so old copies aren't reused.
     const options = this.clientOptions() || {}
-    const variant = options.antiIdle ? '-awake' : ''
+    const mod = this.moddedClient(version, options)
+    if (mod) return mod
+    this.modded = false
+    this._buildMod(version, options)
+    const variant = (options.antiIdle ? '-awake' : '') + (options.itemHover ? '-hover' : '')
     const file = path.join(this.cacheDir, `ajclient-${version}-jr${CLIENT_PATCH}${variant}.swf`)
     if (fs.existsSync(file)) return fs.readFileSync(file)
     const jobKey = version + variant
@@ -187,7 +280,9 @@ class GameServer extends EventEmitter {
       const response = await this.http(source)
       if (!response.ok) throw new Error(`Animal Jam answered ${response.status} for the game file`)
       const original = await response.buffer()
-      const result = swf.patchClient(original, { antiIdle: !!options.antiIdle })
+      const result = swf.patchClient(original, { antiIdle: !!options.antiIdle, itemHover: !!options.itemHover, jrSettings: true })
+      if (result.jrSettings !== 'patched') this.log({ type: 'warn', message: 'Couldn\u2019t add JR\u2019s rows to the game\u2019s Settings window in this game version.' })
+      if (options.itemHover && result.itemHover !== 'patched') this.log({ type: 'warn', message: 'Couldn\u2019t find the item hover code in this game version; the worth bubble won\u2019t show.' })
       if (options.antiIdle && result.idleKick === 'missing') this.log({ type: 'warn', message: 'Couldn\u2019t find the idle logout in this game version; Anti-kick may not work.' })
       if (result.shopRefresh === 'missing') this.log({ type: 'warn', message: 'Couldn\u2019t find the My Shop screen in this game version; refills may only show after you log in again.' })
       fs.mkdirSync(this.cacheDir, { recursive: true })
@@ -197,6 +292,70 @@ class GameServer extends EventEmitter {
     })()
     this.patching.set(jobKey, job)
     try { return await job } finally { this.patching.delete(jobKey) }
+  }
+
+  /**
+   * Starts building JR's in-game version for this game version, in the
+   * background (the game meanwhile gets the plain patched file). The build
+   * starts from the official file with only secure mode off, the shop
+   * refresh and (Anti-kick) the idle logout: the same start the edits were
+   * written against.
+   */
+  _buildMod (version, options = {}) {
+    if (!this.modBuilder) return null
+    const antiIdle = !!options.antiIdle
+    const key = `mod:${version}${antiIdle ? '-awake' : ''}`
+    if (this.patching.has(key)) return this.patching.get(key)
+    const job = (async () => {
+      const baseFile = path.join(this.cacheDir, `ajclient-${version}-base${antiIdle ? '-awake' : ''}.swf`)
+      if (!fs.existsSync(baseFile)) {
+        const source = this.session && this.session.clientURL
+        if (!source) return null
+        const response = await this.http(source)
+        if (!response.ok) throw new Error(`Animal Jam answered ${response.status} for the game file`)
+        const result = swf.patchClient(await response.buffer(), { antiIdle })
+        fs.mkdirSync(this.cacheDir, { recursive: true })
+        fs.writeFileSync(baseFile, result.swf)
+      }
+      return this.modBuilder.build({ version, antiIdle, baseFile })
+    })().catch((error) => {
+      this.log({ type: 'warn', message: `Couldn\u2019t build JR\u2019s in-game features: ${error.message}` })
+      return null
+    })
+    this.patching.set(key, job)
+    job.finally(() => this.patching.delete(key))
+    return job
+  }
+
+  /** A content file from contentSource; anything going wrong sends Animal Jam's own. */
+  async _sourced (req, res, target, name) {
+    let body = null
+    try { body = await this.contentSource.get(name, target) } catch (error) {
+      this.log({ type: 'warn', message: `Seasons: ${error.message}` })
+    }
+    if (!Buffer.isBuffer(body) || !body.length) return this._passThrough(req, res, target)
+    res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': body.length, 'Cache-Control': 'no-cache' })
+    res.end(body)
+  }
+
+  /**
+   * Sends a content file through contentFilter. Anything that goes wrong
+   * sends the file as Animal Jam sent it, so the game always loads.
+   */
+  async _filtered (req, res, target, name) {
+    let upstream
+    try { upstream = await this.http(target) } catch (_) { return this._passThrough(req, res, target) }
+    if (!upstream.ok) { upstream.stream.resume(); return this._passThrough(req, res, target) }
+    const original = await upstream.buffer()
+    let body = original
+    try {
+      const changed = await this.contentFilter.apply(name, original)
+      if (Buffer.isBuffer(changed) && changed.length) body = changed
+    } catch (error) {
+      this.log({ type: 'warn', message: `JR couldn\u2019t change a game file, so it was sent unchanged: ${error.message}` })
+    }
+    res.writeHead(200, { 'Content-Type': upstream.headers['content-type'] || 'application/octet-stream', 'Content-Length': body.length, 'Cache-Control': 'no-cache' })
+    res.end(body)
   }
 
   async _passThrough (req, res, target) {

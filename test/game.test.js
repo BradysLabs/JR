@@ -17,7 +17,8 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'jr-game-'))
 const FAKE = {
   'config.js': 'module.exports = {\n  noUpdater: false,\n  pluginPath: "../../",\n};\n',
   'index.js': 'const {app} = require("electron");\nconst config = require("./config.js");\nconst w = { backgroundColor: "#F5C86D" };\n',
-  'gui/components/GameScreen.js': '"use strict";\n(() => {\n  this.webViewElem.send("flashVarsReady", flashVars);\n})();\n',
+  'gui/components/GameScreen.js': '"use strict";\n(() => {\n  this.webViewElem.addEventListener("ipc-message", async event => {\n  });\n  this.webViewElem.send("flashVarsReady", flashVars);\n})();\n',
+  'gui/gamePreload.js': '"use strict";\nconst { ipcRenderer, contextBridge } = require("electron");\nipcRenderer.on("redirect-url", (event, url) => {\n});\n',
   'gui/index.html': '<html><head><title>Animal Jam Classic</title></head></html>',
   'package.json': '{"name":"aj-classic","version":"1.5.7"}'
 }
@@ -48,9 +49,11 @@ test('asar: write then read back', () => {
 
 test('game copy: built once, patched, rebuilt when AJ updates', () => {
   const official = fakeOfficial()
-  const gameDir = path.join(tmp(), 'game')
-  const first = install.ensureGame({ officialDir: official, gameDir, platform: 'win32' })
+  const base = path.join(tmp(), 'game')
+  const first = install.ensureGame({ officialDir: official, gameDir: base, platform: 'win32' })
   assert.equal(first.rebuilt, true)
+  const gameDir = first.gameDir
+  assert.ok(gameDir.startsWith(base + '-'))
   assert.ok(fs.existsSync(path.join(gameDir, 'AJ Classic.exe')))
   assert.ok(fs.existsSync(path.join(gameDir, 'pepflashplayer.dll')))
   assert.ok(fs.existsSync(path.join(gameDir, 'locales', 'en-US.pak')))
@@ -62,7 +65,18 @@ test('game copy: built once, patched, rebuilt when AJ updates', () => {
   const screen = a.read('gui/components/GameScreen.js').toString()
   assert.match(screen, /window\.jrPrepare = async/)
   assert.match(screen, /window\.jrPrepare\(flashVars\)\.then/)
-  assert.match(a.read('gui/index.html').toString(), /<title>JR<\/title>\s*<script src="jr-skin.js"><\/script>/)
+  assert.match(screen, /window\.jrWatchGame = \(screen\) =>/)
+  assert.match(screen, /try \{ window\.jrWatchGame\(this\); \}/)
+  const preload = a.read('gui/gamePreload.js').toString()
+  assert.match(preload, /exposeInMainWorld\("jrItemOver"/)
+  assert.match(preload, /exposeInMainWorld\("jrItemOut"/)
+  assert.match(preload, /exposeInMainWorld\("jrSettingsRows"/)
+  assert.match(preload, /exposeInMainWorld\("jrSettingToggle"/)
+  assert.doesNotThrow(() => new Function(preload))
+  assert.match(a.read('gui/index.html').toString(), /<title>JR<\/title>\s*<script src="jr-skin.js"><\/script>\s*<script src="jr-ingame.js"><\/script>/)
+  assert.match(a.read('gui/jr-ingame.js').toString(), /window\.jrIngame = \{/)
+  assert.match(a.read('index.js').toString(), /config\.jrToken = arg\('jr-token'\)/)
+  assert.doesNotThrow(() => new Function(a.read('index.js').toString().replace('const {app} = require("electron");', 'const app = { on () {} };')))
   assert.match(a.read('gui/jr-skin.js').toString(), /attachShadow/)
   assert.match(a.read('index.js').toString(), /#0b0b0c/)
   assert.ok(a.read('gui/images/icon.png').length > 1000)
@@ -70,10 +84,18 @@ test('game copy: built once, patched, rebuilt when AJ updates', () => {
   // The patched files are still valid JavaScript.
   assert.doesNotThrow(() => new Function(screen))
 
-  assert.equal(install.ensureGame({ officialDir: official, gameDir, platform: 'win32' }).rebuilt, false)
-  // AJ updates itself
+  assert.equal(install.ensureGame({ officialDir: official, gameDir: base, platform: 'win32' }).rebuilt, false)
+  // AJ updates itself: a new copy in its own folder; the old one is removed.
   fs.appendFileSync(path.join(official, 'AJ Classic.exe'), '2')
-  assert.equal(install.ensureGame({ officialDir: official, gameDir, platform: 'win32' }).rebuilt, true)
+  const second = install.ensureGame({ officialDir: official, gameDir: base, platform: 'win32' })
+  assert.equal(second.rebuilt, true)
+  assert.notEqual(second.gameDir, gameDir)
+  assert.ok(fs.existsSync(path.join(second.gameDir, 'AJ Classic.exe')))
+  assert.ok(!fs.existsSync(gameDir))
+  // An older JR's plain folder is left alone.
+  fs.mkdirSync(base)
+  install.ensureGame({ officialDir: official, gameDir: base, platform: 'win32' })
+  assert.ok(fs.existsSync(base))
 })
 
 test('game copy: a changed AJ is reported, not half-patched', () => {
@@ -246,7 +268,8 @@ test('mac: the copy stays a working app bundle: symlinks kept, archive patched, 
   const run = (cmd, args) => { ran.push([cmd, ...args].join(' ')); return '' }
   const r = install.ensureGame({ officialDir: official, gameDir, platform: 'darwin', run })
   assert.equal(r.rebuilt, true)
-  const app = path.join(gameDir, 'AJ Classic.app')
+  assert.ok(r.gameDir.startsWith(gameDir + '-'))
+  const app = path.join(r.gameDir, 'AJ Classic.app')
   assert.equal(r.exe, path.join(app, 'Contents', 'MacOS', 'AJ Classic'))
   assert.ok(fs.statSync(r.exe).mode & 0o100, 'program is still executable')
   // Framework symlinks are links, not copies (or missing).
@@ -263,7 +286,7 @@ test('mac: the copy stays a working app bundle: symlinks kept, archive patched, 
   assert.ok(!plist.includes(`<string>${asar.headerHash(path.join(official, 'Contents', 'Resources', 'app.asar'))}</string>`))
   // Download flag cleared and signed ad hoc, so macOS will open it.
   // (done on the copy while it's being built, before it's moved into place)
-  const building = path.join(`${gameDir}.building`, 'AJ Classic.app')
+  const building = path.join(`${r.gameDir}.building`, 'AJ Classic.app')
   assert.deepEqual(ran, [`xattr -cr ${building}`, `codesign --force --deep --sign - ${building}`])
   // Up to date the second time; rebuilt when AJ updates.
   assert.equal(install.ensureGame({ officialDir: official, gameDir, platform: 'darwin', run }).rebuilt, false)
@@ -276,7 +299,7 @@ test('mac: a signing failure is explained, and leaves no half-built copy', () =>
   const gameDir = path.join(tmp(), 'game')
   const run = (cmd) => { if (cmd === 'codesign') throw new Error('codesign failed: nope') }
   assert.throws(() => install.ensureGame({ officialDir: official, gameDir, platform: 'darwin', run }), /macOS wouldn't let JR prepare its copy/)
-  assert.ok(!fs.existsSync(gameDir))
+  assert.deepEqual(fs.readdirSync(path.dirname(gameDir)).filter(n => n.startsWith('game-') && !n.endsWith('.building')), [])
 })
 
 test('mac: no checksum in Info.plist is fine (the app doesn\'t check it)', () => {
