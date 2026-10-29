@@ -56,6 +56,8 @@ npm run build    build the Windows installer into dist/
 npm run build:mac  build the Mac app (on a Mac); GitHub builds it for releases
 ```
 
+**Releasing:** bump `version` in package.json, add its notes to `src/ui/whats-new.json`, then commit and push. GitHub Actions (the Release workflow) tests JR, builds the Windows installer and both Mac downloads, and publishes the release.
+
 JR's changes to the game live in `tools/game-mod` (`patch.py`, `anchors.py`, `as/JRUI.as`). `tools/game-mod/build.sh` builds the game file with them and records `src/game/mod/edits.json`, which players' JR replays to build the same thing. Commit `edits.json` with any change to the game edits.
 
 Discord Rich Presence uses the `discord-presence` art asset. Upload `assets/discord-presence.png` in the Discord Developer Portal under **Rich Presence → Art Assets** with the asset key `discord-presence` (the filename without its extension). The app icon on **General Information** is separate from Rich Presence art.

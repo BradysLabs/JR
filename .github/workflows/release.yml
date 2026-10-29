@@ -1,0 +1,143 @@
+# Releases JR (BradysLabs).
+#
+# Runs on every push to main. When package.json has a version that isn't
+# released yet, it tests JR, builds the Windows installer and both Mac
+# downloads, and publishes them as release v<version> with the notes from
+# src/ui/whats-new.json. Players' JR then updates itself.
+#
+# To release: bump "version" in package.json, add its notes to
+# src/ui/whats-new.json, commit and push. Watch it in the Actions tab.
+# It can also be started by hand there (Release → Run workflow).
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      new: ${{ steps.v.outputs.new }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null | grep -q false; then
+            echo "v$VERSION is already released; nothing to do."
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Releasing v$VERSION."
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  windows:
+    needs: check
+    if: needs.check.outputs.new == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # Uploads the installer and latest.yml (what auto-update reads) to a
+      # draft release v<version>.
+      - name: Build and upload the Windows installer
+        run: npx electron-builder build --win --publish always
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  mac:
+    needs: [check, windows]
+    runs-on: macos-14
+    env:
+      TAG: v${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+      # GitHub's Macs run XProtect, which keeps disk images busy and makes
+      # building the .dmg fail ("hdiutil detach ... failed").
+      - name: Stop XProtect
+        run: |
+          sudo pkill -9 XProtect >/dev/null || true
+          while pgrep XProtect; do sleep 3; done
+
+      # One at a time, each into its own folder: both disk images are named
+      # "JR <version>", and builds sharing a folder can clean up each other's files.
+      - name: Build for Apple Silicon
+        run: npx electron-builder build --mac --arm64 --publish never -c.directories.output=dist-arm64
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Build for Intel
+        run: npx electron-builder build --mac --x64 --publish never -c.directories.output=dist-x64
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Check both Mac downloads were built
+        run: |
+          VERSION="${TAG#v}"
+          mkdir -p out
+          for ARCH in arm64 x64; do
+            FILE="dist-$ARCH/JR-$VERSION-mac-$ARCH.dmg"
+            if [ ! -f "$FILE" ]; then
+              echo "::error::$FILE was not built. Files in dist-$ARCH:"
+              ls -la "dist-$ARCH" || true
+              exit 1
+            fi
+            cp "$FILE" out/
+          done
+          ls -la out
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" out/*.dmg --clobber --repo "$GITHUB_REPOSITORY"
+
+  publish:
+    needs: [check, windows, mac]
+    runs-on: ubuntu-latest
+    env:
+      TAG: v${{ needs.check.outputs.version }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Release notes from whats-new.json
+        run: |
+          node -e '
+            const notes = require("./src/ui/whats-new.json")[process.env.VERSION]
+            const lines = notes ? notes.items.map(i => `**${i.title}**\n${i.text}`) : []
+            lines.push("**Download:** Windows: `JR-Setup-" + process.env.VERSION + ".exe`. Mac: `-mac-arm64.dmg` for Apple Silicon, `-mac-x64.dmg` for Intel.")
+            require("fs").writeFileSync("notes.md", lines.join("\n\n") + "\n")
+          '
+          cat notes.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "JR $VERSION" --notes-file notes.md --draft=false --latest
+          echo "Files on $TAG:"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'
