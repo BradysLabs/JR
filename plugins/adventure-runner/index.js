@@ -29,6 +29,8 @@
  *   ctx.trigger(name)       %xt%o%qat%{room}%name%0%
  *   ctx.send(packet, ms?)   any packet; {room} and {player} are filled in
  *   ctx.changeRoom(trig)    trigger a door, wait for the new room, init it
+ *   ctx.gameLoaded()        wait for the game to load the room (its own "qmi")
+ *   ctx.gameTriggered(name) wait for the game to trigger an object itself
  *   ctx.active(prefix)      objects the server showed this run, e.g. 'cork_'
  *   ctx.wait(ms)
  *   ctx.log(type, message)  type: info | warn | error | ok
@@ -52,6 +54,8 @@ const HOST_START_TIMEOUT = 10 * 60 * 1000;  // how long to wait for the host to 
 const REJOIN_RETRY_DELAY = 5000;            // looping: retry joining until the host opens a new game
 const REJOIN_TIMEOUT = 5 * 60 * 1000;
 const ROOM_SETTLE_DELAY = 1500;
+const LEAVE_TIMEOUT = 8000;                 // the game's own Leave; after this JR leaves for it
+const GAME_LOAD_TIMEOUT = 20000;            // how long the game may take to load an adventure room
 const PRIZE_SCREEN_TIMEOUT = 15000;
 const MANUAL_PICK_TIMEOUT = 60000;
 
@@ -90,13 +94,18 @@ let selected = ADVENTURES[0] || null;
 let mode = selected ? selected.modes[0] : null;
 
 let running = false;
-let playerId = null;
+let playerId = null;         // your SFS user ID: what the game puts in pickups (qpup)
 let lastMove = null; // where you last walked to, to spot your own ID in movement packets
 let joinReply = null;       // server's answer to our join request
 let prizeOffered = false;   // server opened the prize screen this run
 let prizeClaimed = false;   // a prize was claimed this run
 const activeObjects = new Set();
 const seenObjects = new Set();   // every adventure object the server mentioned (qs/qas/qau)
+
+let playerIdFromLogin = false;
+// What the game itself has sent since the last room change: "qmi" once it
+// has loaded the room, "qat:<name>" for objects it triggered (e.g. questready).
+const gameSent = new Set();
 
 let currentRoom = null;
 let currentInternalRoomId = null;
@@ -178,6 +187,34 @@ async function refreshRoom() {
 }
 
 
+// Your own player ID: the user ID the server gave you at login. It's what
+// the game itself puts in pickups (AvatarManager.playerSfsUserId), and it
+// stays the same until you log in again.
+async function loginPlayerId() {
+  try {
+    const player = await dispatch.getState('player');
+    if (!player) return null;
+    // The login packet's name for it has varied; take the first that's a number.
+    for (const key of ['sfsUserId', 'userId', 'userid']) {
+      if (/^\d+$/.test(String(player[key]))) return String(player[key]);
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function useLoginPlayerId() {
+  const id = await loginPlayerId();
+  playerIdFromLogin = Boolean(id);
+  if (id && id !== playerId) {
+    playerId = id;
+    log('info', `Player ID ${playerId}`);
+  }
+  return playerId;
+}
+
+
 // ============================================================
 // INCOMING PACKETS
 // ============================================================
@@ -198,10 +235,13 @@ function handleIncoming(message) {
   const parts = partsOf(message);
   const command = parts[2];
 
-  // Your player ID for this session: %xt%qw%<room>%<playerId>%
-  if (command === 'qw' && /^\d+$/.test(parts[4] || '')) {
-    if (playerId !== parts[4]) {
-      playerId = parts[4];
+  // Waiting room: %xt%qw%<room>%<player ID>*  - everyone in the game, the
+  // host first. Only when you're alone is the one ID surely yours (your ID
+  // normally comes from your login; this is the backup).
+  if (command === 'qw') {
+    const ids = parts.slice(4).filter(part => /^\d+$/.test(part));
+    if (!playerIdFromLogin && ids.length === 1 && playerId !== ids[0]) {
+      playerId = ids[0];
       log('info', `Player ID ${playerId}`);
     }
     return;
@@ -210,7 +250,7 @@ function handleIncoming(message) {
   // Movement: %xt%au%<room>%<count>%(<id>%<points>%<x>%<y>...%<flag>)*
   // Some adventures (e.g. Bitter Sweets) never send "qw"; your ID is the
   // player who moved to where you just walked.
-  if (command === 'au' && lastMove) {
+  if (command === 'au' && lastMove && !playerIdFromLogin) {
     const count = Number(parts[4]) || 0;
     let i = 5;
     for (let n = 0; n < count && i + 1 < parts.length; n++) {
@@ -270,8 +310,29 @@ function handleIncoming(message) {
   }
 }
 
+// The game's own adventure packets, so JR can wait for them instead of
+// sending its own copies (a second "qmi" or "questready", or one sent before
+// the game has loaded the room, sets the adventure up twice).
+function noteGamePacket(parts) {
+  const command = parts[2];
+  if (command === 'qmi') gameSent.add('qmi');
+  else if (command === 'qat' && parts[4]) gameSent.add(`qat:${parts[4]}`);
+}
+
 function setupListeners() {
   let hooked = false;
+
+  if (dispatch && typeof dispatch.onMessage === 'function') {
+    for (const message of ['qmi', 'qat']) {
+      try {
+        dispatch.onMessage({
+          type: 'connection',
+          message,
+          callback: payload => noteGamePacket(partsOf(payload && payload.message ? payload.message : payload))
+        });
+      } catch (error) { /* older JR: falls back to sending them */ }
+    }
+  }
 
   if (dispatch && typeof dispatch.onMessage === 'function') {
     for (const message of ['qw', 'qcmd', 'qj', 'qs', 'qas', 'qau', 'qpgift', 'il']) {
@@ -295,6 +356,7 @@ function setupListeners() {
           // You picked a prize yourself on the prize screen.
           const raw = String(packet.raw || '');
           if (raw.includes('%qpgiftdone%')) prizeClaimed = true;
+          if (!packet.fromPlugin && raw.startsWith('%xt%o%')) noteGamePacket(raw.split('%'));
           // %xt%o%au%<room>%1%<x>%<y>%<dir>%0%
           const move = /^%xt%o%au%[^%]*%\d+%(-?\d+)%(-?\d+)%/.exec(raw);
           if (move) lastMove = { x: move[1], y: move[2] };
@@ -339,8 +401,9 @@ function makeContext(adventure) {
       const room = await refreshRoom();
       if (!room) throw new Error('No room ID available.');
 
-      if (template.includes('{player}') && !playerId) {
-        throw new Error('Player ID not detected yet.');
+      if (template.includes('{player}')) {
+        await useLoginPlayerId();
+        if (!playerId) throw new Error('Player ID not detected yet. Walk a step in game and try again.');
       }
 
       const packet = template
@@ -362,11 +425,30 @@ function makeContext(adventure) {
       return ctx.send(`%xt%o%qat%{room}%${name}%0%`);
     },
 
+    // Waits for the game to finish loading the adventure room (it says so
+    // with "qmi"). Only if it never does, JR sends it.
+    async gameLoaded(timeout = GAME_LOAD_TIMEOUT) {
+      if (await waitForGame('qmi', timeout)) return;
+      log('warn', 'The game didn\'t say it loaded the room; carrying on.');
+      await ctx.send('%xt%o%qmi%{room}%');
+    },
+
+    // Waits for the game to trigger an object itself (e.g. "questready" once
+    // its scene is ready). Only if it never does, JR triggers it.
+    async gameTriggered(name, timeout = GAME_LOAD_TIMEOUT) {
+      if (await waitForGame(`qat:${name}`, timeout)) {
+        await ctx.wait(STEP_DELAY);
+        return;
+      }
+      log('warn', `The game didn't trigger ${name}; JR is triggering it.`);
+      await ctx.trigger(name);
+    },
+
     async changeRoom(triggerName) {
       const before = await refreshRoom();
       await ctx.send(`%xt%o%qat%{room}%${triggerName}%0%`, 0);
       await waitForRoomChange(before);
-      await ctx.send('%xt%o%qmi%{room}%');
+      await ctx.gameLoaded();
       if (adventure.afterStart) await adventure.afterStart(ctx);
     },
 
@@ -404,8 +486,19 @@ function makeContext(adventure) {
   return ctx;
 }
 
+// True once the game has sent `what` (see noteGamePacket) since the last room change.
+async function waitForGame(what, timeout) {
+  const deadline = Date.now() + timeout;
+  while (!gameSent.has(what) && Date.now() < deadline) {
+    await sleep(100);
+    if (!running) throw new Stopped();
+  }
+  return gameSent.has(what);
+}
+
 async function waitForRoomChange(previousRoom, timeout = ROOM_WAIT_TIMEOUT) {
   const deadline = Date.now() + timeout;
+  gameSent.clear(); // the next room's packets only
 
   while (Date.now() < deadline) {
     await sleep(250);
@@ -508,6 +601,7 @@ async function startRun(here = false) {
 // no waiting for a host, no leaving).
 async function runHere(adventure) {
   running = true;
+  await useLoginPlayerId();
   setRunningUI(true);
   activeObjects.clear();
   renderSteps();
@@ -549,6 +643,10 @@ async function runHere(adventure) {
 
 async function runOnce(adventure, host, leaveAfter, isRejoin) {
   activeObjects.clear();
+  // Never carry an ID guessed in an earlier run into this one.
+  playerId = null;
+  lastMove = null;
+  await useLoginPlayerId();
   prizeOffered = false;
   prizeClaimed = false;
   renderSteps();
@@ -570,7 +668,7 @@ async function runOnce(adventure, host, leaveAfter, isRejoin) {
       await startSolo(ctx, adventure, lobbyRoom);
     }
     log('ok', 'Adventure started.');
-    await ctx.send('%xt%o%qmi%{room}%');
+    await ctx.gameLoaded();
     if (adventure.afterStart) await adventure.afterStart(ctx);
 
     // Only needed for adventures that pick things up; Bitter Sweets doesn't.
@@ -594,17 +692,41 @@ async function runOnce(adventure, host, leaveAfter, isRejoin) {
     if (!adventure.handlesPrizes) await handlePrize(ctx);
 
     // ---------- Leave (loop only) ----------
-    if (leaveAfter) {
-      setStatus('Leaving the adventure...');
-      const adventureRoom = await refreshRoom();
-      await ctx.send('%xt%o%qx%{room}%%', 0);
-      await waitForRoomChange(adventureRoom);
-    }
+    if (leaveAfter) await leaveAdventure(ctx);
 
   } catch (error) {
     if (stepIndex >= 0) markStep(stepIndex, 'failed');
     throw error;
   }
+}
+
+// Leaves the adventure the way the game's own Leave button does, so the game
+// cleans up the adventure (held items, its screens, the adventure's objects)
+// before the next one. Sending "qx" straight to the server skips that
+// clean-up, and after a few loops the game crashes. The game's "exit"
+// command (%xt%qcmd%-1%19%) makes it do the whole thing itself, including
+// telling the server. If the game doesn't leave, JR tells the server.
+async function leaveAdventure(ctx) {
+  setStatus('Leaving the adventure...');
+  const adventureRoom = await refreshRoom();
+  let viaGame = false;
+  if (typeof dispatch.sendConnectionMessage === 'function') {
+    try {
+      await dispatch.sendConnectionMessage('%xt%qcmd%-1%19%');
+      viaGame = true;
+    } catch (error) { /* not connected to the game: leave below */ }
+  }
+  if (viaGame) {
+    try {
+      await waitForRoomChange(adventureRoom, LEAVE_TIMEOUT);
+      return;
+    } catch (error) {
+      if (error instanceof Stopped) throw error;
+      log('warn', 'The game didn\'t leave the adventure; leaving for it.');
+    }
+  }
+  await ctx.send('%xt%o%qx%{room}%%', 0);
+  await waitForRoomChange(adventureRoom);
 }
 
 // Why the server refused to start an adventure, in plain words.

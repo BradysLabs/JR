@@ -14,8 +14,11 @@ module.exports = {
   questId: 14,
   modes: ['hard', 'easy'],
 
+  // The game triggers "questready" itself once its scene has loaded; a
+  // second one from JR (or one before the scene is there) sets the
+  // adventure up twice.
   afterStart: async ctx => {
-    await ctx.trigger('questready');
+    await ctx.gameTriggered('questready');
   },
 
   steps: [

@@ -73,8 +73,9 @@ function worthText (key, r) {
  * @param {(q: {kind: string, defId: number, color: number, name: string}) => Promise<object>} o.worth
  * @param {(e: {type: string, message: string}) => void} [o.log]
  */
-function createGameBridge ({ dispatch, rows, toggle, press, worth, profile = () => ({ name: '', saved: '' }), rename = () => {}, anchors = () => ({}), surfaces = null, report = () => {}, worthMap = () => ({}), log = () => {} }) {
+function createGameBridge ({ dispatch, rows, toggle, press, worth, profile = () => ({ name: '', saved: '' }), rename = () => {}, anchors = () => ({}), surfaces = null, report = () => {}, worthMap = () => ({}), picture = () => {}, log = () => {} }) {
   let seen = false
+  let talking = false // the game on this connection has JR's in-game build
   let lastAnchors = ''
   const send = (kind, value) => {
     try { dispatch.sendConnectionMessage(xtIn('jr', -1, kind, field(value))) } catch (_) {}
@@ -105,6 +106,7 @@ function createGameBridge ({ dispatch, rows, toggle, press, worth, profile = () 
       const args = parts.slice(5, parts[parts.length - 1] === '' ? -1 : undefined)
       const kind = args[0]
       if (!seen) { seen = true; log({ type: 'success', message: 'JR’s in-game build is talking to JR.' }) }
+      talking = true
       try {
         if (kind === 's') sendRows()
         else if (kind === 't') {
@@ -119,6 +121,8 @@ function createGameBridge ({ dispatch, rows, toggle, press, worth, profile = () 
         else if (kind === 'n') { rename(args[1] === '-' ? '' : String(args[1] || '')); sendRows() }
         else if (kind === 'o' && surfaces) surfaces.open(JSON.parse(String(args[1] || '{}')))
         else if (kind === 'k') send('k', worthMap())
+        // An item picture the game drew (src/game/pictures.js).
+        else if (kind === 'i') picture(String(args[1] || ''), String(args[2] || ''), String(args[3] || ''))
         else if (kind === 'd') {
           // What the game reports about its own screens, for placing JR's buttons.
           const info = JSON.parse(String(args[1] || '{}'))
@@ -148,9 +152,9 @@ function createGameBridge ({ dispatch, rows, toggle, press, worth, profile = () 
   // ready before the Settings window is first opened.
   dispatch.onMessage({ type: 'aj', message: 'rj', callback: () => { setTimeout(sendRows, 0) } })
   // A new login starts a new game: send the screen buttons again.
-  dispatch.onMessage({ type: 'aj', message: 'login', callback: () => { lastAnchors = '' } })
+  dispatch.onMessage({ type: 'aj', message: 'login', callback: () => { lastAnchors = ''; talking = false } })
 
-  return { sendRows, send, sendAnchors, setSurfaces (s) { surfaces = s } }
+  return { sendRows, send, sendAnchors, setSurfaces (s) { surfaces = s }, get talking () { return talking } }
 }
 
 module.exports = { createGameBridge, worthText, field }

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { ProfileStore } = require('../src/profiles/store')
+const { ProfileStore, LOCK_STALE } = require('../src/profiles/store')
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'jr-profiles-'))
 
@@ -69,6 +69,23 @@ test('a lock held by another running process is respected', () => {
   const a = store.create('A')
   fs.writeFileSync(path.join(store.dirOf(a.id), 'profile.lock'), String(process.ppid))
   assert.throws(() => store.open(a.id), /already open in another JR window/)
+})
+
+test('a lock nobody has refreshed is taken over, even if its process number is in use again', () => {
+  const store = new ProfileStore(tmp())
+  const a = store.create('A')
+  const lock = path.join(store.dirOf(a.id), 'profile.lock')
+  // Left by a JR closed without cleaning up; Windows has since given its
+  // process number to another program (here: the test runner's parent).
+  fs.writeFileSync(lock, String(process.ppid))
+  const old = new Date(Date.now() - LOCK_STALE - 5000)
+  fs.utimesSync(lock, old, old)
+  assert.equal(store.isOpen(a.id), false)
+  const release = store.open(a.id)
+  assert.equal(fs.readFileSync(lock, 'utf8'), String(process.pid))
+  assert.equal(store.isOpen(a.id), true)
+  release()
+  assert.equal(store.isOpen(a.id), false)
 })
 
 test('a broken profiles.json does not crash JR', () => {

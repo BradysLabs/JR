@@ -44,7 +44,7 @@ test('saves a shop as a template and refills it with matching items', async () =
   const saving = s.saveTemplate(151, 'Weekend')
   await answer('%xt%dsi%-1%1%2%v1%3%50%2%10%439%0%30%0%20%994%')
   const t = await saving
-  assert.equal(sent[0], '%xt%o%dsi%7882775%seller%151%')
+  assert.equal(sent[0], '%xt%o%dsi%7882775%Seller%151%')
   assert.deepEqual(t.items.map(i => [i.kind, i.defId, i.color, i.version, i.currency, i.cost]), [
     ['clothing', 439, 5, undefined, 3, 50],
     ['den', 994, undefined, 2, 0, 30]
@@ -417,4 +417,40 @@ test('shop explorer: a scan retries a shop that didn\'t answer, and can be stopp
   s.stopScan()
   const r = await stopping.catch(e => e)
   assert.ok(r.stopped || r instanceof Error)
+})
+
+/* ----------------------------------------------- recycle answers */
+
+test('recycling: answers to JR\'s recycles are kept from the game, which just gets the new gem count', async () => {
+  const { d, game } = setup()
+  const toGame = []
+  d.session.toGame = (t) => toGame.push(t)
+  // JR recycled something: the game's Recycle window must not see the answer.
+  const reply = decode('%xt%ir%-1%1%5120%11%', 'in')
+  await d.process(reply)
+  assert.equal(reply.send, false)
+  assert.deepEqual(toGame, ['%xt%cu%-1%0%5120%0%'])
+  const den = decode('%xt%dr%-1%1%-1%20%', 'in')
+  await d.process(den)
+  assert.equal(den.send, false)
+  assert.equal(toGame.length, 1) // no gem count in that answer, nothing to tell
+  // The game's own recycle still gets its answer.
+  await game('%xt%o%ir%7882775%12%')
+  const own = decode('%xt%ir%-1%1%5130%12%', 'in')
+  await d.process(own)
+  assert.notEqual(own.send, false)
+})
+
+test('shop explorer: asks for shops with the den owner\'s name spelled as the game spells it', async () => {
+  const { d, s, sent, server } = setup()
+  await server(VISIT.rj.replace('%denfriend%', '%denFriendly%'))
+  await server(VISIT.ds)
+  assert.equal(d.getState('roomName'), 'denFriendly')
+  assert.equal(s.explorer().owner, 'Friendly')
+  s.wait = async () => {}
+  const reading = s.browseShop(4153)
+  for (let i = 0; i < 200 && !sent.length; i++) await new Promise(r => setTimeout(r, 2))
+  assert.equal(sent[0], `%xt%o%dsi%${d.getState('room')}%Friendly%4153%`)
+  await server(VISIT.dsi[0])
+  assert.equal((await reading).items.length, 16)
 })

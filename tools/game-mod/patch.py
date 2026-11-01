@@ -100,6 +100,22 @@ JR_BRIDGE = r'''
          {
             jrToast(_loc3_);
          }
+         else if(_loc2_ == "dp")
+         {
+            // Den Item Previewer (plugins/den-item-previewer/den.js).
+            if(_loc3_)
+            {
+               JRDenPreview.apply(_loc3_);
+            }
+         }
+         else if(_loc2_ == "i")
+         {
+            // JR asks for item pictures (src/game/pictures.js).
+            if(_loc3_ && _loc3_.q is Array)
+            {
+               JRPictureMaker.ask(_loc3_.q as Array);
+            }
+         }
          else if(_loc2_ == "k")
          {
             if(_loc3_)

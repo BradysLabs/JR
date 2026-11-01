@@ -57,6 +57,26 @@ function spikedFamily (value) {
   return null
 }
 
+// One-word variants that describe a version, not an item of their own.
+const VERSION_WORDS = new Set([
+  'rare', 'default', 'classic', 'original', 'normal', 'regular', 'standard', 'beta', 'betas',
+  'small', 'medium', 'large', 'short', 'long', 'tall', 'big', 'mini', 'giant', 'dark', 'light',
+  'new', 'old', 'glitched', 'glitchy', 'exclusive', 'common', 'uncommon', 'limited', 'other',
+  'variety', 'solid', 'solids', 'mixed', 'nm', 'member', 'members', 'nonmember'
+])
+
+/**
+ * Whether a one-word variant is the name of an item in its own right, so it
+ * can be found by that name. Only when it can't be confused with anything:
+ * not a color or a version word, and either the only row on the wiki with
+ * that name or one of a page of betas (where every row is its own item).
+ */
+function isOwnItemWord (word, item, counts) {
+  if (word.length < 3 || /^\d+$/.test(word) || VERSION_WORDS.has(word) || colorTerms(word).length) return false
+  if (counts.get(word) === 1) return true
+  return /\bbetas?\b/.test(normalize(item.page))
+}
+
 function indexWorth (items) {
   const index = new Map()
   const allRows = new Map()
@@ -64,6 +84,13 @@ function indexWorth (items) {
     if (!key) return
     if (!index.has(key)) index.set(key, new Map())
     index.get(key).set(item.id, item)
+  }
+
+  // How often each one-word variant appears across the wiki (see below).
+  const singleWordCount = new Map()
+  for (const item of items || []) {
+    const variant = normalize(item.variant)
+    if (variant && !variant.includes(' ')) singleWordCount.set(variant, (singleWordCount.get(variant) || 0) + 1)
   }
 
   for (const item of items || []) {
@@ -79,6 +106,9 @@ function indexWorth (items) {
     const variant = normalize(item.variant)
     if (variant.split(' ').length > 1) {
       for (const key of keysForName(variant)) add(key, item)
+    } else if (variant && isOwnItemWord(variant, item, singleWordCount)) {
+      // A one-word item name in a list of items, e.g. "Books" on Den Betas.
+      add(variant, item)
     }
 
     // A few tables put only a color in the variant column and the item family
@@ -241,7 +271,13 @@ function rowsForGameItem (index, item, packedColor, layerColors) {
   if (!family) {
     const name = normalize(item.name)
     const identity = rows.filter(row => normalize(row.variant) === name)
-    if (identity.length) return identity
+    if (identity.length) {
+      // "Rare Nerd Glasses" is one wiki row for every color, but the Nerd
+      // Glasses page values its yellow-tape and white-tape pairs apart.
+      const rare = /^rare (.+)$/.exec(name)
+      const versions = rare ? rowsByPictureColor(rowsFor(index, rare[1], null).filter(row => !row._wikiNameCandidate && normalize(row.page) === rare[1]), variant) : []
+      return versions.length ? versions : identity
+    }
     const base = rows.filter(row => !row.variant &&
       (normalize(row.page) === name || normalize(row.name) === name) &&
       (!row.section || normalize(row.section) === name || normalize(row.section) === normalize(row.page) || normalize(row.section) === normalize(row.name)))
@@ -287,6 +323,27 @@ function rowsForGameItem (index, item, packedColor, layerColors) {
   const colorRows = rows.filter(row => colorTerms(row.variant).length)
   const signatures = [...new Set(colorRows.map(row => (row.offers || []).map(offer => offer.text).filter(Boolean).join(' · ')).filter(Boolean))]
   return signatures.length === 1 ? colorRows.map(row => ({ ...row, _wikiColorIndependent: true })) : []
+}
+
+/**
+ * The rows whose picture is named after this color of the item, e.g. "Nerd
+ * glasses yellow tape.png" for the pair with yellow tape. Uses the layers
+ * that change between the item's colors (the tape, not the black frame), and
+ * only when every color the picture names is there and that leaves one value.
+ * @param {object[]} rows wiki rows of one item's page
+ * @param {object} variant from itemColorVariant
+ */
+function rowsByPictureColor (rows, variant) {
+  if (!rows.length || !variant || !Array.isArray(variant.layers) || !variant.layers.length) return []
+  const changing = variant.layers.filter(layer => layer.varied)
+  const have = new Set((changing.length ? changing : variant.layers).flatMap(layer => layer.names || []))
+  if (have.has('gray')) have.add('grey')
+  const picked = rows.filter(row => {
+    const terms = colorTerms(String(row.imageName || '').replace(/\.[a-z0-9]+$/i, ''))
+    return terms.length && terms.every(term => have.has(term))
+  })
+  if (new Set(picked.map(row => String(row.raw || '').trim())).size !== 1) return []
+  return picked.map(row => ({ ...row, _wikiColorMatch: true, _wikiPictureColor: true }))
 }
 
 function rowsFor (index, name, color) {
@@ -403,4 +460,4 @@ function imageForRows (rows) {
   return images.length === 1 ? images[0] : ''
 }
 
-module.exports = { colorTerms, normalize, indexWorth, colorName, colorNames, itemColorVariant, rowsFor, rowsForInventory, rowsForGameItem, spikeLength, describeRow, valueForRows, imageForRows }
+module.exports = { colorTerms, normalize, indexWorth, colorName, colorNames, itemColorVariant, rowsFor, rowsForInventory, rowsForGameItem, rowsByPictureColor, spikeLength, describeRow, valueForRows, imageForRows }

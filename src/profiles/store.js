@@ -116,7 +116,7 @@ class ProfileStore {
       } catch (error) {
         if (error.code !== 'EEXIST') throw error
         const owner = Number(readText(lock))
-        if (owner && owner !== process.pid && isRunning(owner)) {
+        if (owner && owner !== process.pid && isRunning(owner) && isFresh(lock)) {
           throw new Error(`"${profile.name}" is already open in another JR window.`)
         }
         // Left behind by a JR that crashed (or by us): take it over.
@@ -132,10 +132,19 @@ class ProfileStore {
     this._save(all)
 
     openHere.add(dir)
+    // Keep the lock fresh while it's open: a lock nobody refreshes was left
+    // by a JR that was closed without cleaning up (e.g. Ctrl+C on npm start),
+    // even if Windows has since given its process number to another program.
+    const heartbeat = setInterval(() => {
+      const now = new Date()
+      try { if (Number(readText(lock)) === process.pid) fs.utimesSync(lock, now, now) } catch (_) {}
+    }, LOCK_REFRESH)
+    if (heartbeat.unref) heartbeat.unref()
     let released = false
     return () => {
       if (released) return
       released = true
+      clearInterval(heartbeat)
       openHere.delete(dir)
       if (Number(readText(lock)) === process.pid) fs.rmSync(lock, { force: true })
     }
@@ -145,7 +154,8 @@ class ProfileStore {
     let lock
     try { lock = path.join(this.dirOf(id), 'profile.lock') } catch (_) { return false }
     const owner = Number(readText(lock))
-    return !!owner && isRunning(owner)
+    if (owner === process.pid) return openHere.has(path.dirname(lock))
+    return !!owner && isRunning(owner) && isFresh(lock)
   }
 
   _all () {
@@ -173,6 +183,13 @@ function readText (file) {
   try { return fs.readFileSync(file, 'utf8').trim() } catch (_) { return '' }
 }
 
+const LOCK_REFRESH = 10 * 1000 // how often an open profile refreshes its lock
+const LOCK_STALE = 30 * 1000   // a lock not refreshed for this long was left behind
+
+function isFresh (lock) {
+  try { return Date.now() - fs.statSync(lock).mtimeMs < LOCK_STALE } catch (_) { return false }
+}
+
 function isRunning (pid) {
   try {
     process.kill(pid, 0)
@@ -182,4 +199,4 @@ function isRunning (pid) {
   }
 }
 
-module.exports = { ProfileStore, COLORS }
+module.exports = { ProfileStore, COLORS, LOCK_STALE }

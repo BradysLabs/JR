@@ -19,7 +19,8 @@
  *   {t:'btn', id, label, style, v}  {t:'row', items:[{id, label, style, v}]}
  *   {t:'tog', id, label, sub, v}    {t:'in', id, label, v, go, max, lines}
  *   {t:'chips', id, label, opts:[{v, l}], v}  {t:'sw', id, colors:[hex], v}
- *   {t:'num', id, label, v, step}   {t:'li', id, text, sub, right, c, rc, sel, btns:[{id, label, style, v}]}
+ *   {t:'num', id, label, v, step}   {t:'li', id, text, sub, right, c, rc, sel, ic, btns:[{id, label, style, v}]}
+ *   li ic: the item's picture, drawn by the game: {k:'c', id, c: color} or {k:'d', id, v: version}; s: size
  * c / rc colors: dim, ok, warn, bad. Styles: primary, danger, on, normal.
  */
 
@@ -43,7 +44,9 @@ const ANCHORS = {
   // JR's More Sorts button by the den item search (the inventory's opens from Sort By)
   densort: { pos: 'right', round: 30 },
   denswitch: { pos: 'left' },
-  denedit: { pos: 'left' },
+  // Den item bar: round Worth and Preview buttons, together no wider than the
+  // old Worth button, between the house button and the close button.
+  denedit: { pos: 'left', round: 28 },
   animals: { pos: 'left' },
   adventure: { pos: 'left' },
   achievements: { pos: 'left' },

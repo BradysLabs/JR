@@ -137,10 +137,21 @@ function createPricer ({ root, items, worthItems, pictureColors }) {
     if (found.length) return found
     // "Rare Headdress" is the "Rare Item Monday" row on the Headdress page.
     const rare = /^rare\s+(.+)$/i.exec(name)
+    // Only when that's the page's one value: some pages list other versions
+    // too ("Rare Nerd Glasses" is the yellow-tape pair, but the page's Rare
+    // Item Monday row is the white-tape one).
     if (rare) {
-      const rim = match.rowsFor(index, rare[1], null)
-        .filter(row => !row._wikiNameCandidate && /^(rare item monday|rim|rare)$/i.test(String(row.variant || '').trim()))
-      if (rim.length && new Set(rim.map(r => String(r.raw || '').trim())).size === 1) return rim.map(r => ({ ...r, _wikiRareRow: true }))
+      const raw = (r) => String(r.raw || '').trim()
+      // Color rows ("Blue", "Red") are the plain item's colors, not versions.
+      const page = match.rowsFor(index, rare[1], null).filter(row => !row._wikiNameCandidate && !match.colorTerms(row.variant).length)
+      const rim = page.filter(row => /^(rare item monday|rim|rare)$/i.test(String(row.variant || '').trim()))
+      if (rim.length && new Set(rim.map(raw)).size === 1) {
+        if (new Set(page.map(raw)).size === 1) return rim.map(r => ({ ...r, _wikiRareRow: true }))
+        const picked = rowsByPictureColor(item, page)
+        if (picked.length) return picked.map(r => ({ ...r, _wikiRareRow: true }))
+        // Can't tell which version this is: show them all, priced as unclear.
+        return page.map(r => ({ ...r, _wikiRareRow: true }))
+      }
     }
     // Nothing by name: use rows whose picture is named after this exact item,
     // when they all agree on one value.
@@ -148,6 +159,15 @@ function createPricer ({ root, items, worthItems, pictureColors }) {
     if (!pictured.length) return []
     const values = new Set(pictured.map(r => String(r.raw || '').trim()))
     return values.size === 1 ? pictured.map(r => ({ ...r, _wikiPictureMatch: true })) : []
+  }
+
+  /** The rows of one item's page whose picture names this item's color. */
+  function rowsByPictureColor (item, page) {
+    if (item.kind !== 'clothing' || typeof items.layerColors !== 'function') return []
+    const def = items.getClothing(item.id)
+    if (!def) return []
+    const color = item.color != null ? item.color : Array.isArray(def.colors) ? def.colors[0] : null
+    return match.rowsByPictureColor(page, match.itemColorVariant({ ...def, id: Number(item.id) }, color, items.layerColors.bind(items)))
   }
 
   function storePrice (item) {

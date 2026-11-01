@@ -26,6 +26,26 @@ const { spawn } = require('child_process')
 const fs = (() => { try { return require('original-fs') } catch (_) { return require('fs') } })()
 const { request } = require('../http')
 
+// Windows briefly locks files that were just written (antivirus scanning
+// them, or Java/tar not quite letting go), and moving or deleting them then
+// fails with EPERM/EBUSY/EACCES. A moment later it works.
+const LOCKED = new Set(['EPERM', 'EBUSY', 'EACCES', 'ENOTEMPTY'])
+const RM = { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+/** Renames, waiting out a brief lock; last resort copies and deletes. */
+async function move (from, to, { tries = 12, delay = 250 } = {}) {
+  for (let i = 0; ; i++) {
+    try { fs.renameSync(from, to); return } catch (error) {
+      if (!LOCKED.has(error.code)) throw error
+      if (i >= tries) break
+      await sleep(delay * Math.min(i + 1, 4))
+    }
+  }
+  fs.cpSync(from, to, { recursive: true, force: true })
+  try { fs.rmSync(from, RM) } catch (_) {}
+}
+
 const FFDEC = {
   version: '26.4.0',
   url: 'https://github.com/jindrapetrik/jpexs-decompiler/releases/download/version26.4.0/ffdec_26.4.0.zip',
@@ -42,7 +62,7 @@ const JAVA = {
 const javaUrl = (file) => `https://github.com/adoptium/temurin21-binaries/releases/download/${JAVA_RELEASE}/${file}`
 
 // Names JR's edits add to the game; a finished build must have them.
-const MUST_HAVE = ['jrAnchor', 'jrBigPalette', 'JRColorPicker']
+const MUST_HAVE = ['jrAnchor', 'jrBigPalette', 'JRColorPicker', 'JRPictureMaker']
 
 /** JR's recorded edits (src/game/mod/edits.json). */
 function loadEdits (file = path.join(__dirname, 'edits.json')) {
@@ -143,7 +163,7 @@ function createModBuilder ({ toolsDir, outDir, log = () => {}, edits = null, htt
     log({ type: 'notify', message: `Downloading ${name.replace(/-.*/, '') === 'java' ? 'Java' : 'FFDec'} for JR\u2019s in-game features (first time only)\u2026` })
     fs.mkdirSync(toolsDir, { recursive: true })
     const tmp = `${dir}.part`
-    fs.rmSync(tmp, { recursive: true, force: true })
+    fs.rmSync(tmp, RM)
     fs.mkdirSync(tmp, { recursive: true })
     const archive = path.join(toolsDir, archiveName)
     try {
@@ -151,10 +171,10 @@ function createModBuilder ({ toolsDir, outDir, log = () => {}, edits = null, htt
       // Windows 10+ and macOS both have tar, and it reads .zip too.
       await exec('tar', ['-xf', archive, '-C', tmp])
     } finally {
-      try { fs.rmSync(archive, { force: true }) } catch (_) {}
+      try { fs.rmSync(archive, RM) } catch (_) {}
     }
-    fs.rmSync(dir, { recursive: true, force: true })
-    fs.renameSync(tmp, dir)
+    fs.rmSync(dir, RM)
+    await move(tmp, dir)
     const hit = check(dir)
     if (!hit) throw new Error(`${name} didn't unpack as expected`)
     return hit
@@ -195,10 +215,10 @@ function createModBuilder ({ toolsDir, outDir, log = () => {}, edits = null, htt
       await exec(java, [...jvm, '-importScript', baseFile, tmp, path.join(work, 'mod')], { cwd: path.dirname(ffdec) })
       check(tmp)
       fs.mkdirSync(outDir, { recursive: true })
-      fs.renameSync(tmp, out)
+      await move(tmp, out)
       return out
     } finally {
-      try { fs.rmSync(work, { recursive: true, force: true }) } catch (_) {}
+      try { fs.rmSync(work, RM) } catch (_) {}
     }
   }
 
@@ -247,7 +267,8 @@ function createModBuilder ({ toolsDir, outDir, log = () => {}, edits = null, htt
         try { fs.rmSync(lock, { force: true }) } catch (_) {}
       }
     })().catch((error) => {
-      failed.set(key, error)
+      // A locked file is worth trying again next time the game opens.
+      if (!LOCKED.has(error && error.code)) failed.set(key, error)
       log({ type: 'warn', message: `Couldn’t build JR’s in-game features: ${error.message}. The game still works without them.` })
       return null
     }).finally(() => jobs.delete(key))
@@ -258,4 +279,4 @@ function createModBuilder ({ toolsDir, outDir, log = () => {}, edits = null, htt
   return { file, build, id: E.id, tools, nameOf }
 }
 
-module.exports = { createModBuilder, applySteps, loadEdits, FFDEC, JAVA }
+module.exports = { createModBuilder, applySteps, loadEdits, move, FFDEC, JAVA }

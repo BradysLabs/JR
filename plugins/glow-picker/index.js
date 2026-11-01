@@ -194,6 +194,7 @@ async function send (value) {
     warned = true
     setStatus('Server stopped confirming. Try a slower speed.', 'warn')
   }
+  return true
 }
 
 function nextValue () {
@@ -219,13 +220,15 @@ function modeLabel () {
   return mode ? mode[0].toUpperCase() + mode.slice(1) : ''
 }
 
-function stop () {
+// Stops any running mode and takes the glow off. A glow value of 0 is what
+// the game itself sends to clear an avatar's glow.
+async function stop () {
   if (timer) clearInterval(timer)
   timer = null
   mode = null
   activeSwap = null
   renderMode()
-  setStatus('Off')
+  if (await send(0)) setStatus('Glow removed')
 }
 
 function start (newMode) {

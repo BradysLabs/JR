@@ -1,0 +1,10 @@
+{
+  "name": "Den Item Previewer",
+  "description": "Place any den item in your den to see how it looks. Only you can see it - nothing is sent to the server.",
+  "category": "Customize",
+  "icon": "fa-couch",
+  "author": "BradysLabs",
+  "main": "index.html",
+  "type": "ui",
+  "game": "animal-jam-classic"
+}

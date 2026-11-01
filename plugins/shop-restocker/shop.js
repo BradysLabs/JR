@@ -114,6 +114,16 @@ class ShopService {
     on('aj', 'ap', (m) => this._swallowOwn('ap', m))
     on('connection', 'dsi', (m) => this._gameRequest('dsi', m))
     on('connection', 'dsu', (m) => this._gameRequest('dsu', m))
+    // Recycling: the game hands every recycle answer to its own Recycle
+    // window, even ones it didn't ask for, and that window then says "One or
+    // more of your items could not be recycled". So only answers to the
+    // game's own recycles reach it; answers to JR's (Recycle Presets, Gem
+    // Farm) are kept from it (see _onRecycleReply).
+    this.recycleAsks = { ir: [], dr: [] } // the game's own recycles still waiting for an answer
+    on('connection', 'ir', () => this._recycleAsked('ir'))
+    on('connection', 'dr', () => this._recycleAsked('dr'))
+    on('aj', 'ir', (m) => this._onRecycleReply('ir', m))
+    on('aj', 'dr', (m) => this._onRecycleReply('dr', m))
   }
 
   /* ------------------------------------------------------------ helpers */
@@ -440,7 +450,10 @@ class ShopService {
   async readShop (shopId) {
     const me = this._me()
     if (!me) throw new Error('Log in to Animal Jam first.')
-    const v = await this._ask('dsi', [me, shopId])
+    // Spelled the way the game sends it (capitals and all).
+    const p = this.dispatch.getState('player') || {}
+    const name = String(p.userName || p.username || p.screenName || this.username || me)
+    const v = await this._ask('dsi', [name, shopId])
     if (String(v[4]) !== '1') throw new Error('Animal Jam couldn’t open that shop.')
     return this._applyShopInfo(shopId, v)
   }
@@ -881,6 +894,30 @@ class ShopService {
 
   stopRecycle () { if (this.recycling) this.recycling.stopped = true }
 
+  _recycleAsked (cmd) {
+    const list = this.recycleAsks[cmd]
+    const now = Date.now()
+    while (list.length && now - list[0] > RECYCLE_REPLY_WINDOW) list.shift() // answers that never came
+    list.push(now)
+  }
+
+  /**
+   * A recycle answer: %xt%ir%-1%<count>%<gems, or -1>%<slot>*  (dr the same).
+   * An answer the game didn't ask for is kept from it, and the game is told
+   * your new gem count instead (%xt%cu%-1%0%<gems>%0%, no popup).
+   */
+  _onRecycleReply (cmd, message) {
+    const list = this.recycleAsks[cmd]
+    const now = Date.now()
+    while (list.length && now - list[0] > RECYCLE_REPLY_WINDOW) list.shift()
+    if (list.length) { list.shift(); return } // the game's own recycle
+    message.send = false
+    const gems = String((message.value || [])[5] || '')
+    if (/^\d+$/.test(gems)) {
+      try { this.dispatch.sendConnectionMessage(`%xt%cu%-1%0%${gems}%0%`) } catch (_) {}
+    }
+  }
+
   /** Turns auto-recycle on (with a preset's entries) or off (null). This session only. */
   setAutoRecycle (preset) {
     this.autoRecycle = preset && Array.isArray(preset.entries) && preset.entries.length
@@ -929,8 +966,10 @@ class ShopService {
     const room = String(this.dispatch.getState('room') || '')
     // The game sends the den's items again now and then. Same den: keep
     // what's been read so far (and any scan going on).
+    const name = this._denOwnerName() || owner
     if (this.visit && this.visit.owner === owner) {
       this.visit.room = room
+      this.visit.name = name
       if (stands.length) {
         this.visit.stands = stands
         for (const id of [...this.visit.shops.keys()]) if (!stands.some(s => s.id === id)) this.visit.shops.delete(id)
@@ -938,13 +977,23 @@ class ShopService {
       return
     }
     if (this.visit && this.visit.scan) this.visit.scan.stopped = true
-    this.visit = { owner, room, stands, shops: new Map(), at: nowIso(), scan: null }
+    this.visit = { owner, name, room, stands, shops: new Map(), at: nowIso(), scan: null }
   }
 
   /** The owner of the den you're in now, from its room name ("den<name>"). */
   _denOwner () {
     const roomName = String(this.dispatch.getState('roomName') || '')
     return /^den./i.test(roomName) ? roomName.slice(3).toLowerCase() : null
+  }
+
+  /**
+   * The den owner's name as the game spells it. The server only answers a
+   * shop request with the name spelled exactly like this (capitals and all),
+   * the way the game sends it, so this is what goes in requests.
+   */
+  _denOwnerName () {
+    const roomName = String(this.dispatch.getState('roomName') || '')
+    return /^den./i.test(roomName) ? roomName.slice(3) : null
   }
 
   _inVisitedDen () {
@@ -957,7 +1006,7 @@ class ShopService {
     if (!visit || !visit.owner) throw new Error('Go into a den with a My Shop first.')
     if (!this._inVisitedDen()) throw new Error('You left that den. Go back in and try again.')
     standId = Number(standId)
-    const v = await this._ask('dsi', [visit.owner, standId], { timeout: EXPLORE_TIMEOUT })
+    const v = await this._ask('dsi', [visit.name || visit.owner, standId], { timeout: EXPLORE_TIMEOUT })
     if (String(v[4]) !== '1') throw new Error('The game wouldn\u2019t open that shop.')
     const items = parseShopItems(v).map(it => ({ ...it, name: it.kind === 'pet' ? null : this.itemName(it.kind, it.defId) }))
     const shop = { items, checkedAt: nowIso() }
@@ -1026,7 +1075,7 @@ class ShopService {
     if (!visit) return { owner: null, stands: [], here: false, scan: null }
     const scan = visit.scan
     return {
-      owner: visit.owner,
+      owner: visit.name || visit.owner,
       here: this._inVisitedDen(),
       at: visit.at,
       scan: scan ? { total: scan.total, done: scan.done, current: scan.current, stopping: scan.stopped } : null,
@@ -1079,6 +1128,7 @@ const MAX_SALES = 1000
 const DEFAULT_STAND = 3993 // the usual My Shop stand, if item names haven't loaded
 const SCAN_GAP = 1200 // between shops when scanning a den, like someone clicking them
 const RECYCLE_GAP = 350 // between recycle requests
+const RECYCLE_REPLY_WINDOW = 15000 // how long a recycle's answer is waited for
 const OUTFIT_GAP = 300 // after changing clothes, before changing colors
 const EXPLORE_TIMEOUT = 5000 // how long to wait for one shop's answer while exploring
 const LATE_WINDOW = 4000 // how long after giving up JR still expects (and drops) the late answer

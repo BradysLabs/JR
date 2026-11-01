@@ -77,6 +77,15 @@
     .swatch.index { background: var(--panel-2); text-shadow: none; }
     #colorNote:empty { display: none; }
     .toggle { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+    .row { padding: 5px 10px; gap: 10px; }
+    .thumbBox { width: 40px; height: 40px; flex: none; border-radius: 6px; background: var(--bg); }
+    img.thumb { width: 100%; height: 100%; object-fit: contain; }
+    img.thumb:not(.ok) { visibility: hidden; }
+    .look { display: flex; gap: 12px; align-items: center; }
+    .pic { width: 96px; height: 96px; flex: none; border-radius: 8px; background: var(--bg); border: 1px solid var(--border);
+      display: grid; place-items: center; overflow: hidden; color: var(--muted); font-size: 9px; text-align: center; }
+    #worth { font-weight: 700; color: var(--accent); margin-top: 4px; }
+    #worthNote { color: var(--muted); font-size: 10px; line-height: 1.4; }
   </style>
 </head>
 <body>
@@ -96,9 +105,14 @@
     <section class="col">
       <div class="card">
         <div class="label">Selected</div>
-        <div>
-          <div id="selName">Pick an item</div>
-          <div id="selMeta"></div>
+        <div class="look">
+          <div id="pic" class="pic"></div>
+          <div style="min-width: 0;">
+            <div id="selName">Pick an item</div>
+            <div id="selMeta"></div>
+            <div id="worth"></div>
+            <div id="worthNote"></div>
+          </div>
         </div>
         <div>
           <div class="label" style="margin-bottom: 6px;">Color</div>
@@ -125,7 +139,7 @@
           <button id="removeAll" class="btn" type="button" disabled>Take all off</button>
           <label class="toggle"><input id="keep" type="checkbox" checked> Keep on when changing rooms</label>
         </div>
-        <div class="hint">Keep this window open while previewing. Closing it takes the preview items off. They stay in your inventory list until you log in again, but can't be used.</div>
+        <div class="hint">Your previews are kept: they stay on when you close this window, and they're back in your items (and on, if you were wearing them) when you log in again. Only you see them. Remove stops keeping one.</div>
       </div>
     </section>
   </main>

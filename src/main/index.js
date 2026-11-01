@@ -400,4 +400,8 @@ function isNewer (a, b) {
 }
 
 app.on('window-all-closed', () => app.quit())
-app.on('will-quit', () => presence.stop())
+app.on('will-quit', () => {
+  presence.stop()
+  // Free every profile this JR had open, so the next start can open them.
+  for (const { release } of profileWindows.values()) { try { release() } catch (_) {} }
+})

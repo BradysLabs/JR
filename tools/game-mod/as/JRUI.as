@@ -14,6 +14,18 @@ import flash.display.Loader;
 import flash.display.LoaderInfo;
 import flash.net.FileFilter;
 import flash.net.FileReference;
+import flash.utils.ByteArray;
+import flash.utils.getTimer;
+import item.Item;
+import den.DenItem;
+import den.DenStateItem;
+import den.DenXtCommManager;
+import room.RoomManagerWorld;
+import gui.GuiManager;
+import collection.DenItemCollection;
+import avatar.MannequinData;
+import Enums.DenItemDef;
+import avatar.AvatarManager;
 
 // ------------------------------------------------------------------ JR UI
 // JR's windows and buttons inside the game, drawn to match Animal Jam's own:
@@ -344,6 +356,45 @@ class JRIcon
          param1.endFill();
          return;
       }
+      if(param2 == "worth")
+      {
+         // a diamond
+         param1.lineStyle(_loc6_ * 0.1,0x1D4E79,1,true);
+         param1.beginFill(0xFFFFFF,1);
+         param1.moveTo(param3 - _loc6_ * 0.85,param4 - _loc6_ * 0.2);
+         param1.lineTo(param3 - _loc6_ * 0.45,param4 - _loc6_ * 0.65);
+         param1.lineTo(param3 + _loc6_ * 0.45,param4 - _loc6_ * 0.65);
+         param1.lineTo(param3 + _loc6_ * 0.85,param4 - _loc6_ * 0.2);
+         param1.lineTo(param3,param4 + _loc6_ * 0.8);
+         param1.lineTo(param3 - _loc6_ * 0.85,param4 - _loc6_ * 0.2);
+         param1.endFill();
+         param1.moveTo(param3 - _loc6_ * 0.85,param4 - _loc6_ * 0.2);
+         param1.lineTo(param3 + _loc6_ * 0.85,param4 - _loc6_ * 0.2);
+         param1.moveTo(param3 - _loc6_ * 0.3,param4 - _loc6_ * 0.2);
+         param1.lineTo(param3,param4 + _loc6_ * 0.8);
+         param1.lineTo(param3 + _loc6_ * 0.3,param4 - _loc6_ * 0.2);
+         return;
+      }
+      if(param2 == "den")
+      {
+         // a couch
+         param1.lineStyle(_loc6_ * 0.09,0x1D4E79,1,true);
+         param1.beginFill(0xFFD54A,1);
+         param1.drawRoundRect(param3 - _loc6_ * 0.62,param4 - _loc6_ * 0.6,_loc6_ * 1.24,_loc6_ * 0.7,_loc6_ * 0.3,_loc6_ * 0.3);
+         param1.endFill();
+         param1.beginFill(0xFFFFFF,1);
+         param1.drawRoundRect(param3 - _loc6_ * 0.95,param4 - _loc6_ * 0.2,_loc6_ * 0.4,_loc6_ * 0.75,_loc6_ * 0.2,_loc6_ * 0.2);
+         param1.drawRoundRect(param3 + _loc6_ * 0.55,param4 - _loc6_ * 0.2,_loc6_ * 0.4,_loc6_ * 0.75,_loc6_ * 0.2,_loc6_ * 0.2);
+         param1.endFill();
+         param1.beginFill(0xFFFFFF,1);
+         param1.drawRect(param3 - _loc6_ * 0.55,param4 + _loc6_ * 0.05,_loc6_ * 1.1,_loc6_ * 0.4);
+         param1.endFill();
+         param1.moveTo(param3 - _loc6_ * 0.75,param4 + _loc6_ * 0.55);
+         param1.lineTo(param3 - _loc6_ * 0.75,param4 + _loc6_ * 0.8);
+         param1.moveTo(param3 + _loc6_ * 0.75,param4 + _loc6_ * 0.55);
+         param1.lineTo(param3 + _loc6_ * 0.75,param4 + _loc6_ * 0.8);
+         return;
+      }
       if(param2 == "sort")
       {
          // three bars, longest to shortest, and an arrow
@@ -546,12 +597,18 @@ class JRRound extends Sprite
    private var _d:Number;
    private var _face:Shape;
 
-   public function JRRound(param1:String, param2:String, param3:String, param4:Number, param5:Function)
+   private var _tip:Sprite;
+
+   private var _tipText:String;
+
+   // param6: a name shown on hover (icon buttons have no words on them).
+   public function JRRound(param1:String, param2:String, param3:String, param4:Number, param5:Function, param6:String = "")
    {
       super();
       key = param1;
       _act = param5;
       _d = param4;
+      _tipText = param6;
       _face = new Shape();
       addChild(_face);
       paint(false);
@@ -605,11 +662,34 @@ class JRRound extends Sprite
    private function onOver(param1:MouseEvent) : void
    {
       paint(true);
+      if(_tipText != "" && _tip == null)
+      {
+         var _loc2_:TextField = JRStyle.field(_tipText,11,0xFFFFFF,true);
+         _tip = new Sprite();
+         _tip.graphics.beginFill(0x1D4E79,0.92);
+         _tip.graphics.drawRoundRect(0,0,_loc2_.width + 12,_loc2_.height + 4,8,8);
+         _tip.graphics.endFill();
+         _loc2_.x = 6;
+         _loc2_.y = 2;
+         _tip.addChild(_loc2_);
+         _tip.mouseEnabled = false;
+         _tip.mouseChildren = false;
+         _tip.x = Math.round((_d - _tip.width) / 2);
+         _tip.y = -_tip.height - 4;
+      }
+      if(_tip != null)
+      {
+         addChild(_tip);
+      }
    }
 
    private function onOut(param1:MouseEvent) : void
    {
       paint(false);
+      if(_tip != null && _tip.parent == this)
+      {
+         removeChild(_tip);
+      }
    }
 
    private function onDown(param1:MouseEvent) : void
@@ -727,7 +807,7 @@ class JRBar extends Sprite
       {
          if(param4 > 0)
          {
-            _loc6_ = new JRRound(String(_loc5_.local || _loc5_.id),_loc5_.i ? String(_loc5_.i) : "",_loc5_.i ? "" : String(_loc5_.l),param4,onPick);
+            _loc6_ = new JRRound(String(_loc5_.local || _loc5_.id),_loc5_.i ? String(_loc5_.i) : "",_loc5_.i ? "" : String(_loc5_.l),param4,onPick,_loc5_.i ? String(_loc5_.l) : "");
             Object(_loc6_).local = !!_loc5_.local;
          }
          else
@@ -1436,8 +1516,11 @@ class JRPanel extends Sprite
    {
       var _loc4_:Sprite = new Sprite();
       var _loc5_:Number = param3;
+      // ic: the item's picture, drawn by the game (JRItemIcon), left of the text.
+      var _loc16_:Number = param1.ic ? (param1.ic.s ? Number(param1.ic.s) : 36) : 0;
+      var _loc17_:Number = _loc16_ > 0 ? _loc16_ + 10 : 0;
       var _loc6_:Array = param1.btns is Array ? param1.btns as Array : [];
-      var _loc7_:Number = _loc5_ - 16;
+      var _loc7_:Number = _loc5_ - 16 - _loc17_;
       var _loc8_:Object = null;
       var _loc9_:JRPill = null;
       var _loc10_:Array = [];
@@ -1454,19 +1537,31 @@ class JRPanel extends Sprite
          _loc7_ -= _loc11_.width + 6;
       }
       var _loc12_:TextField = JRStyle.field(String(param1.text),12,JRStyle.tone(param1.c ? String(param1.c) : ""),true,Math.max(60,_loc7_));
-      _loc12_.x = 9;
+      _loc12_.x = 9 + _loc17_;
       _loc12_.y = 5;
       _loc4_.addChild(_loc12_);
       var _loc13_:Number = _loc12_.height + 10;
       if(param1.sub)
       {
          var _loc14_:TextField = JRStyle.field(String(param1.sub),10,JRStyle.DIM,false,Math.max(60,_loc7_));
-         _loc14_.x = 9;
+         _loc14_.x = 9 + _loc17_;
          _loc14_.y = 5 + _loc12_.height;
          _loc4_.addChild(_loc14_);
          _loc13_ += _loc14_.height;
       }
-      _loc13_ = Math.max(_loc13_,32);
+      _loc13_ = Math.max(_loc13_,32,_loc16_ + 8);
+      if(_loc16_ > 0)
+      {
+         var _loc18_:JRItemIcon = new JRItemIcon(param1.ic,_loc16_);
+         _loc18_.x = 6;
+         _loc18_.y = Math.round((_loc13_ - _loc16_) / 2);
+         _loc4_.addChild(_loc18_);
+         if(_loc14_ != null)
+         {
+            _loc14_.y = Math.round((_loc13_ - _loc12_.height - _loc14_.height) / 2) + _loc12_.height;
+         }
+         _loc12_.y = _loc14_ != null ? _loc14_.y - _loc12_.height : Math.round((_loc13_ - _loc12_.height) / 2);
+      }
       var _loc15_:Number = _loc5_ - 4;
       for each(_loc9_ in _loc10_)
       {
@@ -2675,6 +2770,404 @@ class JRColorPicker extends Sprite
       if(parent)
       {
          parent.removeChild(this);
+      }
+   }
+}
+
+// ------------------------------------------------------------ item pictures
+// An item's picture, the way the game shows it in your inventory: the
+// game's own Item (clothing, in a color) or DenItem (in a version) draws it.
+// ic: {k: "c" | "d", id, c: color, v: version}.
+
+class JRItemIcon extends Sprite
+{
+   public var versions:int = 0;
+
+   private var _size:Number;
+
+   private var _item:Object;
+
+   private var _started:int;
+
+   private var _done:Function;
+
+   private static const TIMEOUT:int = 20000;
+
+   public function JRItemIcon(param1:Object, param2:Number, param3:Boolean = true, param4:Function = null)
+   {
+      super();
+      _size = param2;
+      _done = param4;
+      mouseEnabled = false;
+      mouseChildren = false;
+      if(param3)
+      {
+         graphics.lineStyle(1,JRStyle.PARCH_LINE,1,true);
+         graphics.beginFill(0xFFFFFF,0.85);
+         graphics.drawRoundRect(0,0,_size,_size,10,10);
+         graphics.endFill();
+      }
+      try
+      {
+         if(String(param1.k) == "d")
+         {
+            // Mannequins can't be drawn without their look: give them the default one.
+            var _loc7_:MannequinData = null;
+            var _loc8_:DenItemDef = DenXtCommManager.getDenItemDef(int(param1.id));
+            if(_loc8_ != null && int(_loc8_.specialType) == 4)
+            {
+               _loc7_ = new MannequinData();
+               _loc7_.init(_loc8_,null,0,true,0,false);
+            }
+            var _loc5_:DenItem = new DenItem();
+            _loc5_.init(int(param1.id),0,0,int(param1.v),0,null,true,"","",-1,"",_loc7_,0,0);
+            _loc5_.makeSmallIcon();
+            _item = _loc5_;
+         }
+         else
+         {
+            var _loc6_:Item = new Item();
+            _loc6_.init(int(param1.id),0,uint(param1.c));
+            _loc6_.makeSmallIcon();
+            _item = _loc6_;
+         }
+      }
+      catch(e:Error)
+      {
+         _item = null;
+      }
+      _started = getTimer();
+      addEventListener(Event.ENTER_FRAME,onFrame);
+   }
+
+   private function onFrame(param1:Event) : void
+   {
+      var _loc2_:Boolean = false;
+      try
+      {
+         _loc2_ = _item != null && Boolean(_item.isIconLoaded);
+      }
+      catch(e:Error)
+      {
+      }
+      if(!_loc2_ && _item != null && getTimer() - _started < TIMEOUT)
+      {
+         return;
+      }
+      removeEventListener(Event.ENTER_FRAME,onFrame);
+      if(_loc2_)
+      {
+         show();
+      }
+      if(_done != null)
+      {
+         _done(this,_loc2_);
+      }
+   }
+
+   private function show() : void
+   {
+      var _loc1_:Sprite = null;
+      try
+      {
+         _loc1_ = _item.icon as Sprite;
+         if(_item is DenItem)
+         {
+            var _loc2_:Array = DenItem(_item).getVersions();
+            versions = _loc2_ != null ? _loc2_.length : 0;
+         }
+      }
+      catch(e:Error)
+      {
+         return;
+      }
+      if(_loc1_ == null)
+      {
+         return;
+      }
+      var _loc3_:Sprite = new Sprite();
+      _loc3_.addChild(_loc1_);
+      addChild(_loc3_);
+      var _loc4_:Rectangle = _loc3_.getBounds(_loc3_);
+      if(_loc4_.width <= 0 || _loc4_.height <= 0)
+      {
+         return;
+      }
+      var _loc5_:Number = Math.min((_size - 6) / _loc4_.width,(_size - 6) / _loc4_.height,_size > 60 ? 3 : 1.5);
+      _loc3_.scaleX = _loc3_.scaleY = _loc5_;
+      _loc3_.x = Math.round((_size - _loc4_.width * _loc5_) / 2 - _loc4_.x * _loc5_);
+      _loc3_.y = Math.round((_size - _loc4_.height * _loc5_) / 2 - _loc4_.y * _loc5_);
+   }
+
+   /** The picture as a PNG (transparent background), or null. */
+   public function png() : ByteArray
+   {
+      try
+      {
+         var _loc1_:BitmapData = new BitmapData(Math.ceil(_size),Math.ceil(_size),true,0);
+         _loc1_.draw(this,null,null,null,null,true);
+         return JRPng.encode(_loc1_);
+      }
+      catch(e:Error)
+      {
+      }
+      return null;
+   }
+}
+
+// Draws pictures JR asks for ("i") and sends each back as a PNG:
+//   jr  i  <key>  <PNG, base64 or ->  <den item versions>
+// A few at a time, so the game stays smooth.
+
+class JRPictureMaker
+{
+   private static var _queue:Array = [];
+
+   private static var _busy:int = 0;
+
+   private static const AT_ONCE:int = 3;
+
+   private static const SIZE:int = 96;
+
+   public static function ask(param1:Array) : void
+   {
+      var _loc2_:Object = null;
+      for each(_loc2_ in param1)
+      {
+         if(_loc2_ && _loc2_.key)
+         {
+            _queue.push(_loc2_);
+         }
+      }
+      next();
+   }
+
+   private static function next() : void
+   {
+      var _loc1_:Object = null;
+      while(_busy < AT_ONCE && _queue.length > 0)
+      {
+         _loc1_ = _queue.shift();
+         _busy++;
+         makeOne(_loc1_);
+      }
+   }
+
+   private static function makeOne(param1:Object) : void
+   {
+      var key:String = String(param1.key);
+      new JRItemIcon(param1,SIZE,false,function(param2:JRItemIcon, param3:Boolean):void
+      {
+         var _loc4_:String = "-";
+         if(param3)
+         {
+            var _loc5_:ByteArray = param2.png();
+            if(_loc5_ != null)
+            {
+               _loc4_ = JRPng.base64(_loc5_);
+            }
+         }
+         XtReplyDemuxer.jrSend(["i",key,_loc4_,String(param2.versions)]);
+         _busy--;
+         next();
+      });
+   }
+}
+
+// A small PNG writer: 32-bit RGBA, no filtering, zlib from ByteArray.compress().
+
+class JRPng
+{
+   private static var _crc:Array;
+
+   public static function encode(param1:BitmapData) : ByteArray
+   {
+      var _loc2_:ByteArray = new ByteArray();
+      _loc2_.writeUnsignedInt(0x89504E47);
+      _loc2_.writeUnsignedInt(0x0D0A1A0A);
+      var _loc3_:ByteArray = new ByteArray();
+      _loc3_.writeInt(param1.width);
+      _loc3_.writeInt(param1.height);
+      _loc3_.writeByte(8);
+      _loc3_.writeByte(6);
+      _loc3_.writeByte(0);
+      _loc3_.writeByte(0);
+      _loc3_.writeByte(0);
+      chunk(_loc2_,0x49484452,_loc3_);
+      var _loc4_:ByteArray = new ByteArray();
+      var _loc5_:int = 0;
+      var _loc6_:int = 0;
+      var _loc7_:uint = 0;
+      _loc5_ = 0;
+      while(_loc5_ < param1.height)
+      {
+         _loc4_.writeByte(0);
+         _loc6_ = 0;
+         while(_loc6_ < param1.width)
+         {
+            _loc7_ = param1.getPixel32(_loc6_,_loc5_);
+            _loc4_.writeUnsignedInt(uint((_loc7_ & 0xFFFFFF) << 8 | _loc7_ >>> 24));
+            _loc6_++;
+         }
+         _loc5_++;
+      }
+      _loc4_.compress();
+      chunk(_loc2_,0x49444154,_loc4_);
+      chunk(_loc2_,0x49454E44,null);
+      return _loc2_;
+   }
+
+   private static function chunk(param1:ByteArray, param2:uint, param3:ByteArray) : void
+   {
+      var _loc4_:uint = param3 != null ? param3.length : 0;
+      param1.writeUnsignedInt(_loc4_);
+      var _loc5_:uint = param1.position;
+      param1.writeUnsignedInt(param2);
+      if(param3 != null)
+      {
+         param1.writeBytes(param3);
+      }
+      var _loc6_:uint = param1.position;
+      param1.position = _loc5_;
+      var _loc7_:uint = 0xFFFFFFFF;
+      var _loc8_:int = 0;
+      if(_crc == null)
+      {
+         makeTable();
+      }
+      _loc8_ = 0;
+      while(_loc8_ < int(_loc6_ - _loc5_))
+      {
+         _loc7_ = uint(_crc[(_loc7_ ^ param1.readUnsignedByte()) & 0xFF]) ^ (_loc7_ >>> 8);
+         _loc8_++;
+      }
+      param1.position = _loc6_;
+      param1.writeUnsignedInt(_loc7_ ^ 0xFFFFFFFF);
+   }
+
+   private static function makeTable() : void
+   {
+      var _loc1_:uint = 0;
+      var _loc2_:int = 0;
+      var _loc3_:int = 0;
+      _crc = [];
+      _loc2_ = 0;
+      while(_loc2_ < 256)
+      {
+         _loc1_ = uint(_loc2_);
+         _loc3_ = 0;
+         while(_loc3_ < 8)
+         {
+            if(_loc1_ & 1)
+            {
+               _loc1_ = 0xEDB88320 ^ (_loc1_ >>> 1);
+            }
+            else
+            {
+               _loc1_ = _loc1_ >>> 1;
+            }
+            _loc3_++;
+         }
+         _crc[_loc2_] = _loc1_;
+         _loc2_++;
+      }
+   }
+
+   private static const B64:String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+   public static function base64(param1:ByteArray) : String
+   {
+      var _loc2_:Array = [];
+      var _loc3_:int = 0;
+      var _loc4_:uint = 0;
+      var _loc5_:int = param1.length;
+      param1.position = 0;
+      _loc3_ = 0;
+      while(_loc3_ < _loc5_)
+      {
+         _loc4_ = param1[_loc3_] << 16 | (_loc3_ + 1 < _loc5_ ? param1[_loc3_ + 1] << 8 : 0) | (_loc3_ + 2 < _loc5_ ? param1[_loc3_ + 2] : 0);
+         _loc2_.push(B64.charAt(_loc4_ >>> 18 & 63),B64.charAt(_loc4_ >>> 12 & 63),_loc3_ + 1 < _loc5_ ? B64.charAt(_loc4_ >>> 6 & 63) : "=",_loc3_ + 2 < _loc5_ ? B64.charAt(_loc4_ & 63) : "=");
+         _loc3_ += 3;
+      }
+      return _loc2_.join("");
+   }
+}
+
+
+// ------------------------------------------------------------ den previews
+// JR's Den Item Previewer ("dp"): puts a preview den item in your den
+// inventory (the editor's bottom bar) and, when asked, in your den - the
+// same way the editor places an item you click (DenEditor.placeItemInRoom),
+// so nothing else in your den moves. Nothing is sent to Animal Jam.
+//   {op: "add", s: slot, d: item id, v: version, place: true}
+//   {op: "remove", s: slot}
+
+class JRDenPreview
+{
+   public static function apply(param1:Object) : void
+   {
+      try
+      {
+         var _loc2_:DenItemCollection = gMainFrame.userInfo.playerUserInfo.denItemsFull;
+         if(_loc2_ == null)
+         {
+            return;
+         }
+         var _loc3_:int = int(param1.s);
+         var _loc4_:RoomManagerWorld = RoomManagerWorld.instance;
+         var _loc5_:int = 0;
+         // Never twice: take out any copy first (from the bar and the den).
+         _loc5_ = _loc2_.length - 1;
+         while(_loc5_ >= 0)
+         {
+            if(_loc2_.getDenItem(_loc5_).invIdx == _loc3_)
+            {
+               _loc2_.getCoreArray().splice(_loc5_,1);
+            }
+            _loc5_--;
+         }
+         if(_loc4_ && _loc4_.denItemHolder)
+         {
+            _loc4_.denItemHolder.removeItem(_loc3_,0);
+         }
+         if(String(param1.op) == "add")
+         {
+            var _loc6_:DenItemDef = DenXtCommManager.getDenItemDef(int(param1.d));
+            if(_loc6_ == null)
+            {
+               return;
+            }
+            var _loc7_:MannequinData = null;
+            if(int(_loc6_.specialType) == 4)
+            {
+               _loc7_ = new MannequinData();
+               _loc7_.init(_loc6_,null,0,true,_loc3_,true);
+            }
+            var _loc8_:DenItem = new DenItem();
+            _loc8_.init(int(param1.d),_loc3_,0,int(param1.v),0,null,true,"","",-1,"",_loc7_,0,0);
+            _loc2_.pushDenItem(_loc8_);
+            if(param1.place && _loc4_ && _loc4_.isMyDen && _loc4_.denItemHolder)
+            {
+               var _loc9_:int = DenItem.getInWorldId(_loc8_.sortId,_loc4_.denCatId);
+               _loc8_.categoryId = _loc9_;
+               _loc4_.spawnNewDenItem(new DenStateItem(_loc8_.defId,_loc8_.invIdx,_loc8_.defId << 16 | _loc9_,0,0,_loc8_.version,_loc8_.version2,_loc8_.version3,0,_loc9_,_loc8_.refId,_loc8_.sortId,_loc8_.minigameDefId,_loc8_.layerId,_loc8_.enviroType,_loc8_.strmName,0,"",_loc8_.specialType,_loc8_.listId,_loc8_.uniqueImageId,_loc8_.uniqueImageCreator,_loc8_.uniqueImageCreatorDbId,_loc8_.uniqueImageCreatorUUID,false,null,0,0,_loc8_.petItem,_loc8_.mannequinData,_loc8_.ecoConsumerStateId));
+            }
+         }
+         // The same bookkeeping as the editor after a change, then redraw its bar.
+         gMainFrame.userInfo.playerUserInfo.denItemsPartial = DenXtCommManager.enviroItems(_loc2_);
+         if(AvatarManager.playerAvatar != null)
+         {
+            AvatarManager.playerAvatar.inventoryDenPartial.denItemCollection = gMainFrame.userInfo.playerUserInfo.denItemsPartial;
+            AvatarManager.playerAvatar.inventoryDenFull.denItemCollection = _loc2_;
+         }
+         gMainFrame.userInfo.playerUserInfo.denItemsFull = _loc2_;
+         if(GuiManager.denEditor)
+         {
+            GuiManager.denEditor.reloadDenItems();
+         }
+      }
+      catch(e:Error)
+      {
       }
    }
 }

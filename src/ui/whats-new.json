@@ -1,4 +1,37 @@
 {
+  "0.3.0": {
+    "date": "2026-11",
+    "items": [
+      {
+        "title": "Den Item Previewer",
+        "text": "See any den item in your den before you get it, mannequins too. Previews go in your den and your den items bar and work like your own items: drag them, flip them, put them back. Use the new Preview button on your den's item bar, or the Den Item Previewer window. Only you see them, and your real den changes still save normally."
+      },
+      {
+        "title": "Keep what you preview",
+        "text": "Clothing you try on and den items you place are kept for each account. Log back in and your outfit is back on and your den is decorated just how you left it. Remove stops keeping one."
+      },
+      {
+        "title": "Pictures of every item",
+        "text": "Item Previewer, Den Item Previewer and JR's Try On and Preview windows in the game show a picture of every item, drawn by the game itself. The Item Previewer shows the item you pick big, in the color you choose, with its worth."
+      },
+      {
+        "title": "Smarter search and buttons",
+        "text": "Previewer search finds plurals, words in any order and item IDs (“mannequins” finds every mannequin). The den item bar has round Worth and Preview buttons; point at a round JR button to see its name."
+      },
+      {
+        "title": "Better item worths",
+        "text": "One-word items like Books and other den betas now show their worth, and Rare Nerd Glasses are valued by tape color."
+      },
+      {
+        "title": "Fixes",
+        "text": "No more false “could not be recycled” popup in Recycle Presets. Remove glow takes your glow off. Looping Phantoms from the in-game button no longer crashes the game, and Tiki Trouble gives its pearl prizes when looping. Fixed the “EPERM” in-game features error, profiles wrongly saying they're already open, and Shop Explorer in dens whose owner has capital letters."
+      },
+      {
+        "title": "First time: a quick rebuild",
+        "text": "JR rebuilds its in-game features once after this update. Give it a minute or two, then reopen the game."
+      }
+    ]
+  },
   "0.2.0": {
     "date": "2026-10",
     "items": [

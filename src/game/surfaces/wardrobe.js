@@ -1,5 +1,7 @@
 'use strict'
 
+const { itemMatcher } = require('../search')
+
 /**
  * In the game's Edit Animal screen (and the den editor and trade window):
  * Inventory Worth, Outfits, Item Previewer and Glow Picker.
@@ -206,112 +208,58 @@ const outfits = {
 
 /* ---------------------------------------------------------- item previewer */
 
-// Preview items get made-up inventory slots from here up, so they never
-// clash with real ones. Nothing about them is sent to Animal Jam.
-const FAKE_SLOT_BASE = 900000
-
+// Try any clothing item on. The previews are JR's one shared set
+// (plugins/item-previewer/tryon.js): the same as the Item Previewer window,
+// and kept per account, so they're back (and back on) when you log in.
 const tryOn = {
   id: 'tryon',
   plugin: 'item-previewer',
   buttons: [{ at: 'avatarinv', label: 'Try On', icon: 'tryon' }],
   init (ctx) {
-    const d = ctx.dispatch
-    const st = this.st = { me: null, previews: new Map(), next: FAKE_SLOT_BASE, lastOwnWear: 0, colors: [], pack: null }
-    const myName = () => { const p = d.getState('player') || {}; return String(p.userName || p.username || '').toLowerCase() }
-    st.toGame = (entries) => {
-      if (!st.me) throw new Error('Put on or take off any item once, so JR can find your animal.')
-      const on = entries.filter(e => e.worn); const off = entries.filter(e => !e.worn)
-      const f = ['', 'xt', 'il', -1, 3, 0, st.me.animal, st.me.username, 0, on.length, off.length]
-      on.forEach(e => f.push(e.slot, e.id)); off.forEach(e => f.push(e.slot))
-      d.sendConnectionMessage(f.join('%') + '%')
-    }
-    st.add = (e) => {
-      if (!st.me) throw new Error('Put on or take off any item once, so JR can find your animal.')
-      d.sendConnectionMessage(['', 'xt', 'il', -1, 2, 1, st.me.animal, st.me.username, e.colorValue, 1, 0, e.slot, e.id].join('%') + '%')
-    }
-    d.onMessage({
-      type: 'aj',
-      message: 'il',
-      callback: ({ message }) => {
-        const p = message.value
-        if (!Array.isArray(p) || p.length < 10) return
-        const u = String(p[7] || '').toLowerCase()
-        if ((myName() && u === myName()) || Date.now() - st.lastOwnWear < 3000) {
-          const fresh = !st.me
-          st.me = { animal: p[6], username: p[7] }
-          if (fresh) ctx.surfaces.refresh('tryon')
-        }
-      }
-    })
-    d.onMessage({
-      type: 'connection',
-      message: 'iu',
-      callback: ({ message }) => {
-        const parts = message.value
-        const end = parts[parts.length - 1] === '' ? parts.length - 1 : parts.length
-        const onN = parseInt(parts[5], 10) || 0; const offN = parseInt(parts[6], 10) || 0
-        const putOn = parts.slice(7, 7 + onN).map(Number)
-        const takenOff = parts.slice(7 + onN, Math.min(end, 7 + onN + offN)).map(Number)
-        const isPreview = s => st.previews.has(s)
-        if (!putOn.concat(takenOff).some(isPreview)) { st.lastOwnWear = Date.now(); return }
-        const changed = []
-        putOn.filter(isPreview).forEach(s => { const p = st.previews.get(s); p.worn = true; changed.push(p) })
-        takenOff.filter(isPreview).forEach(s => { const p = st.previews.get(s); p.worn = false; changed.push(p) })
-        try { st.toGame(changed) } catch (_) {}
-        const realOn = putOn.filter(s => !isPreview(s)); const realOff = takenOff.filter(s => !isPreview(s))
-        if (realOn.length || realOff.length) {
-          message.value = [...parts.slice(0, 5), realOn.length, realOff.length, ...realOn, ...realOff, '']
-          st.lastOwnWear = Date.now()
-        } else {
-          message.send = false
-          d.sendConnectionMessage(`%xt%iu%${parts[4]}%1%`)
-        }
-        ctx.surfaces.refresh('tryon')
-      }
-    })
-    // Changing rooms shows your real outfit again: put the previews back on.
-    d.onMessage({
-      type: 'aj',
-      message: 'rj',
-      callback: () => {
-        const worn = [...st.previews.values()].filter(p => p.worn)
-        if (worn.length) setTimeout(() => { try { st.toGame(worn) } catch (_) {} }, 1500)
-      }
-    })
+    this.st = { colors: [], pack: null }
+    const cp = ctx.application && ctx.application.clothingPreviews
+    if (cp) cp.watch(() => ctx.surfaces.refresh('tryon'))
   },
   view (state, ctx) {
     const st = this.st
+    const cp = ctx.application && ctx.application.clothingPreviews
     const rows = []
-    rows.push({ t: 'p', c: 'dim', text: 'Try on any clothing item. Only you see it; nothing is sent to Animal Jam.' })
-    if (!st.me) rows.push({ t: 'p', c: 'warn', text: 'Put on or take off any item once, so JR can find your animal.' })
+    if (!cp) return { title: 'Try On', rows: [{ t: 'p', c: 'warn', text: 'Try On isn’t available in this version of JR.' }] }
+    rows.push({ t: 'p', c: 'dim', text: 'Try on any clothing item. Only you see it; nothing is sent to Animal Jam. What you try on is kept for next time you log in.' })
+    if (!cp.ready) rows.push({ t: 'p', c: 'warn', text: 'Put on or take off any item once, so JR can find your animal.' })
     rows.push({ t: 'in', id: 'q', label: 'Find an item', v: state.q || '', go: 'Search' })
     const q = String(state.q || '').trim().toLowerCase()
     if (q.length >= 2) {
       const hits = []
+      const match = itemMatcher(q)
       for (const [id, def] of ctx.items.clothing || []) {
-        if (def && def.name && def.name.toLowerCase().includes(q)) hits.push({ id: Number(id), name: def.name })
+        if (def && def.name && match(def.name, id)) hits.push({ id: Number(id), name: def.name })
         if (hits.length >= 30) break
       }
       if (!hits.length) rows.push({ t: 'p', c: 'dim', text: ctx.items.ready ? 'No items match.' : 'Item names are still loading.' })
-      for (const h of hits) rows.push({ t: 'li', text: h.name, sub: `#${h.id}`, sel: !!state.sel && state.sel.id === h.id, btns: [{ id: 'pick', label: 'Pick', v: String(h.id) }] })
+      for (const h of hits) rows.push({ t: 'li', ic: itemIcon('clothing', h.id, firstColor(ctx, h.id)), text: h.name, sub: `#${h.id}`, sel: !!state.sel && state.sel.id === h.id, btns: [{ id: 'pick', label: 'Pick', v: String(h.id) }] })
     }
     if (state.sel) {
       rows.push({ t: 'sep' })
-      rows.push({ t: 'h', text: state.sel.name })
-      if (st.colors.length > 1) rows.push({ t: 'chips', id: 'color', label: 'Color', v: String(state.color || 0), opts: st.colors.map((_, i) => ({ v: String(i), l: String(i + 1) })) })
+      const i = Math.min(Number(state.color) || 0, Math.max(0, st.colors.length - 1))
+      const color = st.colors.length ? (st.colors[i] >>> 0) : firstColor(ctx, state.sel.id)
+      rows.push({ t: 'li', ic: itemIcon('clothing', state.sel.id, color, 56), text: state.sel.name, sub: worthLine(ctx, 'clothing', state.sel.id, color) })
+      if (st.colors.length > 1) rows.push({ t: 'chips', id: 'color', label: 'Color', v: String(state.color || 0), opts: st.colors.map((_, n) => ({ v: String(n), l: String(n + 1) })) })
       rows.push({ t: 'btn', id: 'try', label: 'Try it on', style: 'primary' })
     }
-    const list = [...st.previews.values()]
+    const list = cp.list()
     if (list.length) {
       rows.push({ t: 'sep' })
-      rows.push({ t: 'h', text: 'Trying on' })
-      for (const p of list) rows.push({ t: 'li', text: p.name, sub: st.colors.length > 1 ? `color ${p.colorIndex + 1}` : null, btns: [{ id: p.worn ? 'off' : 'on', label: p.worn ? 'Take off' : 'Put on', v: String(p.slot) }] })
+      rows.push({ t: 'h', text: 'Your previews' })
+      for (const p of list) rows.push({ t: 'li', ic: itemIcon('clothing', p.id, p.colorValue >>> 0), text: p.name, sub: `color ${p.colorIndex + 1}${p.worn ? ' · wearing' : ''}`, btns: [{ id: p.worn ? 'off' : 'on', label: p.worn ? 'Take off' : 'Put on', v: String(p.slot) }, { id: 'forget', label: 'Remove', v: String(p.slot), style: 'danger' }] })
       rows.push({ t: 'btn', id: 'alloff', label: 'Take them all off' })
     }
-    return { title: 'Try On', rows, h: 330 }
+    return { title: 'Try On', rows, h: 400 }
   },
   async act (state, c, v, inputs, ctx) {
     const st = this.st
+    const cp = ctx.application && ctx.application.clothingPreviews
+    if (!cp) return
     if (c === 'q') { state.q = v; return }
     if (c === 'pick') {
       const id = Number(v)
@@ -330,22 +278,116 @@ const tryOn = {
     if (c === 'color') { state.color = Number(v) || 0; return }
     if (c === 'try' && state.sel) {
       const i = Math.min(Number(state.color) || 0, Math.max(0, st.colors.length - 1))
-      const p = { slot: st.next++, id: state.sel.id, name: state.sel.name, colorIndex: i, colorValue: st.colors.length ? st.colors[i] : 0, worn: true }
-      st.add(p)
-      st.toGame([p])
-      st.previews.set(p.slot, p)
+      cp.add({ id: state.sel.id, name: state.sel.name, colorIndex: i, colorValue: st.colors.length ? st.colors[i] : 0 })
       return
     }
-    if (c === 'on' || c === 'off') {
-      const p = st.previews.get(Number(v))
-      if (p) { p.worn = c === 'on'; st.toGame([p]) }
+    if (c === 'on' || c === 'off') { cp.setWorn(Number(v), c === 'on'); return }
+    if (c === 'forget') { cp.remove(Number(v)); return }
+    if (c === 'alloff') cp.takeAllOff()
+  }
+}
+
+/* -------------------------------------------------- item pictures, worth */
+
+// An item's picture in a JR window row, drawn by the game itself
+// (JRItemIcon in tools/game-mod/as/JRUI.as). s: size in pixels.
+function itemIcon (kind, id, extra = 0, size) {
+  const ic = kind === 'den' ? { k: 'd', id: Number(id), v: Number(extra) || 0 } : { k: 'c', id: Number(id), c: Number(extra) >>> 0 }
+  if (size) ic.s = size
+  return ic
+}
+
+function firstColor (ctx, id) {
+  const def = ctx.items && ctx.items.getClothing ? ctx.items.getClothing(id) : null
+  return def && Array.isArray(def.colors) && def.colors.length ? (Number(def.colors[0]) >>> 0) : 0
+}
+
+/** "≈ 15–20 Diamonds", "Store price · 90 Gems" or similar, for a row's second line. */
+function worthLine (ctx, kind, id, color) {
+  try {
+    const pricer = ctx.pricer()
+    const v = pricer && pricer.value({ kind, id, color: kind === 'den' ? null : color })
+    if (!v) return null
+    if (v.diamonds) return pricer.format(v.diamonds, { bl: false })
+    if (v.status === 'store') return v.store ? `In stores · ${v.store.cost.toLocaleString()} ${v.store.currency}` : 'In stores'
+    if (v.store) return `Store price · ${v.store.cost.toLocaleString()} ${v.store.currency}`
+    return v.text ? String(v.text).slice(0, 60) : null
+  } catch (_) { return null }
+}
+
+/* ------------------------------------------------------- den item previewer */
+
+// Any den item in your own den, on your screen only. The previews are JR's
+// one shared set (plugins/den-item-previewer/den.js), so this window and the
+// Den Item Previewer window always agree.
+const denPreview = {
+  id: 'denpreview',
+  plugin: 'den-item-previewer',
+  buttons: [{ at: 'denedit', label: 'Preview', icon: 'den' }],
+  init (ctx) {
+    const den = ctx.application && ctx.application.denPreviews
+    if (den) den.watch(() => ctx.surfaces.refresh('denpreview'))
+    // A den item's versions are known once the game has drawn it.
+    const pictures = ctx.application && ctx.application.pictures
+    if (pictures) pictures.on('picture', (key) => { if (key[0] === 'd') ctx.surfaces.refresh('denpreview') })
+  },
+  view (state, ctx) {
+    const den = ctx.application && ctx.application.denPreviews
+    const pictures = ctx.application && ctx.application.pictures
+    const rows = []
+    if (!den) return { title: 'Den Preview', rows: [{ t: 'p', c: 'warn', text: 'Den previews aren\u2019t available in this version of JR.' }] }
+    rows.push({ t: 'p', c: 'dim', text: 'See any den item in your den before you get it. Only you see it; nothing is sent to Animal Jam.' })
+    if (!den.ownDen()) rows.push({ t: 'p', c: 'warn', text: 'Go into your own den to place previews.' })
+    rows.push({ t: 'in', id: 'q', label: 'Find a den item', v: state.q || '', go: 'Search' })
+    const q = String(state.q || '').trim().toLowerCase()
+    if (q.length >= 2) {
+      const hits = []
+      const match = itemMatcher(q)
+      for (const [id, def] of ctx.items.den || []) {
+        if (def && def.name && !/^\d+$/.test(def.name) && match(def.name, id)) hits.push({ id: Number(id), name: def.name })
+        if (hits.length >= 30) break
+      }
+      if (!hits.length) rows.push({ t: 'p', c: 'dim', text: ctx.items.ready ? 'No den items match.' : 'Item names are still loading.' })
+      for (const h of hits) rows.push({ t: 'li', ic: itemIcon('den', h.id), text: h.name, sub: `#${h.id}`, sel: !!state.sel && state.sel.id === h.id, btns: [{ id: 'pick', label: 'Pick', v: String(h.id) }] })
+    }
+    if (state.sel) {
+      rows.push({ t: 'sep' })
+      const version = Number(state.version) || 0
+      rows.push({ t: 'li', ic: itemIcon('den', state.sel.id, version, 56), text: state.sel.name, sub: worthLine(ctx, 'den', state.sel.id) })
+      const count = pictures ? pictures.versionCount(state.sel.id) : null
+      if (count > 1) rows.push({ t: 'chips', id: 'version', label: 'Version', v: String(version), opts: Array.from({ length: count }, (_, n) => ({ v: String(n), l: String(n + 1) })) })
+      rows.push({ t: 'btn', id: 'place', label: 'Place in my den', style: 'primary' })
+    }
+    const list = den.list()
+    if (list.length) {
+      rows.push({ t: 'sep' })
+      rows.push({ t: 'h', text: 'In your den' })
+      for (const p of list) rows.push({ t: 'li', ic: itemIcon('den', p.defId, p.version), text: p.name, sub: [p.placed ? 'in your den' : 'in your den items', p.version ? `version ${p.version + 1}` : null].filter(Boolean).join(' · '), btns: [{ id: 'remove', label: 'Remove', v: String(p.slot), style: 'danger' }] })
+      rows.push({ t: 'btn', id: 'clear', label: 'Remove them all' })
+    }
+    return { title: 'Den Preview', rows, h: 420 }
+  },
+  async act (state, c, v, inputs, ctx) {
+    const den = ctx.application && ctx.application.denPreviews
+    if (!den) return
+    if (c === 'q') { state.q = v; return }
+    if (c === 'pick') {
+      const id = Number(v)
+      const def = ctx.items.getDenItem(id)
+      state.sel = { id, name: (def && def.name) || `Den item #${id}` }
+      state.version = 0
       return
     }
-    if (c === 'alloff') {
-      const worn = [...st.previews.values()].filter(p => p.worn)
-      worn.forEach(p => { p.worn = false })
-      if (worn.length) st.toGame(worn)
+    if (c === 'version') { state.version = Number(v) || 0; return }
+    if (c === 'place' && state.sel) {
+      const { preview, shown } = await den.place(state.sel.id, { version: state.version })
+      ctx.surfaces.toast(shown === 'den'
+        ? `${preview.name} is in your den and your den items. Drag it wherever you like (only you see it).`
+        : shown === 'bar' ? `${preview.name} is in your den items. Go into your den to place it.` : `${preview.name} will be in your den next time you go in.`, 'ok')
+      return
     }
+    if (c === 'remove') { await den.remove(Number(v)); return }
+    if (c === 'clear') await den.clear()
   }
 }
 
@@ -406,7 +448,7 @@ const glow = {
     rows.push({ t: 'h', text: 'Color swaps' })
     rows.push({ t: 'chips', id: 'swap', v: run && run.mode === 'swap' ? run.name : '', opts: SWAPS.map(s => ({ v: s.name, l: s.name })) })
     rows.push({ t: 'num', id: 'speed', label: 'Milliseconds between colors', v: saved.speed, step: 200 })
-    rows.push({ t: 'row', items: [{ id: 'random', label: 'Random colors', style: run && run.mode === 'random' ? 'on' : 'normal' }, { id: 'stop', label: 'Stop', style: run ? 'danger' : 'normal' }] })
+    rows.push({ t: 'row', items: [{ id: 'random', label: 'Random colors', style: run && run.mode === 'random' ? 'on' : 'normal' }, { id: 'stop', label: 'Remove glow', style: run ? 'danger' : 'normal' }] })
     if (run) rows.push({ t: 'p', c: 'ok', text: run.mode === 'random' ? 'Changing to random colors.' : `Swapping: ${run.name}.` })
     return { title: 'Glow', rows }
   },
@@ -431,21 +473,23 @@ const glow = {
     if (c === 'swap') {
       const s = SWAPS.find(x => x.name === v)
       if (!s) return
-      if (this.run && this.run.name === s.name) { this._stop(); return }
+      if (this.run && this.run.name === s.name) { this._stop(); await this._send(ctx, 0); return }
       this._start(ctx, 'swap', s.colors, saved.speed, s.name)
       return
     }
     if (c === 'random') { this._start(ctx, 'random', [], saved.speed, 'Random'); return }
-    if (c === 'stop') this._stop()
+    // 0 is what the game sends to take a glow off.
+    if (c === 'stop') { this._stop(); await this._send(ctx, 0) }
   }
 }
 
 module.exports = [
   worthSurface('worth', ['clothing', 'den'], [{ at: 'avatar', label: 'Worth' }], 'Inventory Worth'),
-  worthSurface('denworth', ['den'], [{ at: 'denedit', label: 'Worth' }], 'Den Item Worth'),
+  worthSurface('denworth', ['den'], [{ at: 'denedit', label: 'Worth', icon: 'worth' }], 'Den Item Worth'),
   tradeWorth,
   outfits,
   tryOn,
+  denPreview,
   glow
 ]
 module.exports.inventoryOf = inventoryOf

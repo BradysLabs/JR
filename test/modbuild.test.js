@@ -51,7 +51,7 @@ test('mod build: a failed build is reported once and the game carries on', async
 test('mod build: decompile, edit, compile, check', async () => {
   const outDir = tmp()
   const calls = []
-  const edits = { id: 'abc', classes: ['gui.Thing'], files: { 'gui/Thing.as': [{ find: 'old()', replace: 'jrAnchor();jrBigPalette();JRColorPicker', count: 1 }] } }
+  const edits = { id: 'abc', classes: ['gui.Thing'], files: { 'gui/Thing.as': [{ find: 'old()', replace: 'jrAnchor();jrBigPalette();JRColorPicker;JRPictureMaker', count: 1 }] } }
   const swf = require('../src/game/swf')
   const runImpl = async (cmd, args) => {
     calls.push(args)

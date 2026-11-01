@@ -576,9 +576,43 @@ module.exports = function createEngine (info) {
   const GAME_ICONS = { streamingMode: 'jammerWallIcon', incognito: 'nameBadge', antiKick: 'autoServer', tradeHelper: 'buddyRequest', worthBubble: 'predictTxt', worthInNames: 'predictTxt', notifications: 'doorBell' }
   const incognito = createIncognito({ dispatch, alias: streamingName, log })
   let gameSurfaces = null
+  // Item pictures drawn by the game (Item Previewer, Den Item Previewer, JR's in-game lists).
+  const { ItemPictures } = req('game/pictures.js')
+  const itemPictures = new ItemPictures({
+    dir: path.join(info.cacheDir, 'pictures'),
+    send: (kind, value) => gameBridge.send(kind, value),
+    ready: () => !!dispatch.connected && gameBridge.talking
+  })
+  application.pictures = itemPictures
+
+  // Previews you keep: clothing you tried on and den items you placed, saved
+  // in this profile per Animal Jam account and back when you log in.
+  const { keepStore } = req('game/keep.js')
+  const myAJName = () => { const p = dispatch.getState('player') || {}; const n = p.userName || p.username || p.screenName; return n ? String(n).toLowerCase() : null }
+  const { ClothingPreviews } = require(path.join(info.root, 'plugins', 'item-previewer', 'tryon.js'))
+  application.clothingPreviews = new ClothingPreviews({
+    dispatch,
+    myName: myAJName,
+    keep: keepStore(path.join(info.dataDir, 'plugin-data', 'item-previewer', 'kept.json'))
+  })
+
+  // Den item previews, shared by the Den Item Previewer window and its window in the game.
+  const { DenPreviews } = require(path.join(info.root, 'plugins', 'den-item-previewer', 'den.js'))
+  application.denPreviews = new DenPreviews({
+    keep: keepStore(path.join(info.dataDir, 'plugin-data', 'den-item-previewer', 'kept.json')),
+    dispatch,
+    getDenItem: (id) => items.getDenItem(id),
+    myName: myAJName,
+    joinPacket: (room, name) => require(path.join(info.root, 'plugins', 'recent-rooms', 'rooms.js')).joinPacket(room, name),
+    // The game puts previews in your den and den items itself (JRDenPreview in JR's in-game build).
+    game: { send: (kind, value) => gameBridge.send(kind, value), ready: () => !!dispatch.connected && gameBridge.talking }
+  })
+  dispatch.onMessage({ type: 'aj', message: 'rj', callback: () => setTimeout(() => itemPictures.pump(), 2000) })
+
   const gameBridge = createGameBridge({
     dispatch,
     log,
+    picture: (key, png, versions) => itemPictures.receive(key, png, versions),
     anchors: () => (gameSurfaces ? gameSurfaces.anchors() : {}),
     // Diamond worth of each item you own, for the game's Most valuable sort.
     worthMap: () => {
